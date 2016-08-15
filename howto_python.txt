@@ -1262,3 +1262,95 @@ from sound.effects import *
 
 In this example, the echo and surround modules are imported in the current namespace because they are defined in the sound.effects package when the from...import statement is executed. (This also works when __all__ is defined.)
 
+
+
+## Input and Output
+
+Often you’ll want more control over the formatting of your output than simply printing space-separated values. There are two ways to format your output; the first way is to do all the string handling yourself; using string slicing and concatenation operations you can create any layout you can imagine. The string type has some methods that perform useful operations for padding strings to a given column width; these will be discussed shortly. The second way is to use the str.format() method.
+
+The string module contains a Template class which offers yet another way to substitute values into strings.
+
+One question remains, of course: how do you convert values to strings? Luckily, Python has ways to convert any value to a string: pass it to the repr() or str() functions.
+
+The str() function is meant to return representations of values which are fairly human-readable, while repr() is meant to generate representations which can be read by the interpreter (or will force a SyntaxError if there is no equivalent syntax). For objects which don’t have a particular representation for human consumption, str() will return the same value as repr(). Many values, such as numbers or structures like lists and dictionaries, have the same representation using either function. Strings, in particular, have two distinct representations.
+
+Here are two ways to write a table of squares and cubes:
+>>>
+
+>>> for x in range(1, 11):
+...     print(repr(x).rjust(2), repr(x*x).rjust(3), end=' ')
+...     # Note use of 'end' on previous line
+...     print(repr(x*x*x).rjust(4))
+...
+ 1   1    1
+ 2   4    8
+<snip>
+10 100 1000
+
+>>> for x in range(1, 11):
+...     print('{0:2d} {1:3d} {2:4d}'.format(x, x*x, x*x*x))
+
+ 1   1    1
+<snip>
+ 9  81  729
+10 100 1000
+
+(Note that in the first example, one space between each column was added by the way print() works: it always adds spaces between its arguments.)
+
+str.zfill()  pads a numeric string on the left with zeros. It understands about plus and minus signs:
+
+>>> '12'.zfill(5)
+'00012'
+>>> '-3.14'.zfill(7)
+'-003.14'
+>>> '3.14159265359'.zfill(5)
+'3.14159265359'
+
+Basic usage of the str.format() method looks like this:
+>>>
+
+>>> print('We are the {} who say "{}!"'.format('knights', 'Ni'))
+We are the knights who say "Ni!"
+
+The brackets and characters within them (called format fields) are replaced with the objects passed into the str.format() method. A number in the brackets can be used to refer to the position of the object passed into the str.format() method.
+>>>
+
+>>> print('{0} and {1}'.format('spam', 'eggs'))
+spam and eggs
+
+Positional and keyword arguments can be arbitrarily combined:
+>>>
+
+>>> print('The story of {0}, {1}, and {other}.'.format('Bill', 'Manfred',
+                                                       other='Georg'))
+The story of Bill, Manfred, and Georg.
+
+'!a' (apply ascii()), '!s' (apply str()) and '!r' (apply repr()) can be used to convert the value before it is formatted:
+>>>
+
+>>> import math
+>>> print('The value of PI is approximately {}.'.format(math.pi))
+The value of PI is approximately 3.14159265359.
+>>> print('The value of PI is approximately {!r}.'.format(math.pi))
+The value of PI is approximately 3.141592653589793.
+
+An optional ':' and format specifier can follow the field name. This allows greater control over how the value is formatted. The following example rounds Pi to three places after the decimal.
+>>>
+
+>>> import math
+>>> print('The value of PI is approximately {0:.3f}.'.format(math.pi))
+The value of PI is approximately 3.142.
+
+Passing an integer after the ':' will cause that field to be a minimum number of characters wide. This is useful for making tables pretty.
+>>>
+
+>>> table = {'Sjoerd': 4127, 'Jack': 4098, 'Dcab': 7678}
+>>> for name, phone in table.items():
+...     print('{0:10} ==> {1:10d}'.format(name, phone))
+...
+Jack       ==>       4098
+Dcab       ==>       7678
+Sjoerd     ==>       4127
+
+For a complete overview of string formatting with str.format(), see https://docs.python.org/3.3/library/string.html#formatstrings
+
