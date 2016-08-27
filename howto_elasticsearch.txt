@@ -1,0 +1,49 @@
+
+# Elasticsearch howto
+
+ A node is a running instance of Elasticsearch. A cluster is a group of nodes with the same cluster.name that are working together to share data and to provide failover and scale. (A single node, however, can form a cluster all by itself.) You can change the cluster.name in the elasticsearch.yml configuration file that’s loaded when you start a node.
+ 
+ 1) Download/install Elasticsearch
+ 
+ Once you’ve extracted the archive file, Elasticsearch is ready to run. To start it up in the foreground:
+
+cd elasticsearch-<version>
+./bin/elasticsearch  
+
+Add -d if you want to run it in the background as a daemon. 
+
+Test it out by opening another terminal window and running the following:
+
+curl 'http://localhost:9200/?pretty'
+
+
+## Sense 
+ Sense is a Kibana app that provides an interactive console for submitting requests to Elasticsearch directly from your browser.
+ un the following command in the Kibana directory to download and install the Sense app:
+
+1) Download/install kibana
+
+# Untar kibana then:
+
+./bin/kibana plugin --install elastic/sense
+
+ 2) Start Kibana.
+
+./bin/kibana
+
+ 3) Open Sense your web browser by going to http://localhost:5601/app/sense. 
+ 
+ # Talking to Elasticsearch
+
+How you talk to Elasticsearch depends on whether you are using Java.
+Java API
+
+If you are using Java, Elasticsearch comes with two built-in clients that you can use in your code:
+
+Node client
+    The node client joins a local cluster as a non data node. In other words, it doesn’t hold any data itself, but it knows what data lives on which node in the cluster, and can forward requests directly to the correct node. 
+Transport client
+    The lighter-weight transport client can be used to send requests to a remote cluster. It doesn’t join the cluster itself, but simply forwards requests to a node in the cluster. 
+
+Both Java clients talk to the cl1uster over port 9300, using the native Elasticsearch transport protocol. The nodes in the cluster also communicate with each other over port 9300. If this port is not open, your nodes will not be able to form a cluster.
+
