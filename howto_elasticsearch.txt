@@ -160,8 +160,6 @@ PUT /megacorp/employee/1
     "interests": [ "sports", "music" ]
 }
 
-View in Sense 
-
 Notice that the path /megacorp/employee/1 contains three pieces of information:
 
 megacorp
@@ -192,8 +190,6 @@ A GET is fairly simple—you get back the document that you ask for. Let’s try
 The first search we will try is the simplest search possible. We will search for all employees, with this request:
 
 GET /megacorp/employee/_search
-
-View in Sense 
 
 You can see that we’re still using index megacorp and type employee, but instead of specifying a document ID, we now use the _search endpoint. The response includes all three of our documents in the hits array. By default, a search will return the top 10 results.
 
@@ -438,6 +434,131 @@ As a properly encoded query string, this looks like the slightly less readable r
 
 ?q=%2Bname%3A(mary+john)+%2Bdate%3A%3E2014-09-10+%2B(aggregations+geo
 
+# Mapping and Analytics
+
+Requesting the mapping (or schema definition) for the tweet type in the gb index:
+GET /gb/_mapping/tweet
+
+So fields of type date and fields of type string are indexed differently, and can thus be searched differently. That’s not entirely surprising. You might expect that each of the core data types—strings, numbers, Booleans, and dates—might be indexed slightly differently. And this is true: there are slight differences.
+
+But by far the biggest difference is between fields that represent exact values (which can include string fields) and fields that represent full text. This distinction is really important—it’s the thing that separates a search engine from all other databases.
+
+Exact Values Versus Full Text
+
+Data in Elasticsearch can be broadly divided into two types: exact values and full text.
+
+Exact values are exactly what they sound like. Examples are a date or a user ID, but can also include exact strings such as a username or an email address. The exact value Foo is not the same as the exact value foo. The exact value 2014 is not the same as the exact value 2014-09-15.
+
+Full text, on the other hand, refers to textual data—usually written in some human language — like the text of a tweet or the body of an email.
+
+Querying full-text data is much more subtle. We are not just asking, “Does this document match the query” but “How well does this document match the query?” In other words, how relevant is this document to the given query?
+
+To facilitate these types of queries on full-text fields, Elasticsearch first analyzes the text, and then uses the results to build an inverted index. 
+
+This process of tokenization and normalization is called analysis, which we discuss in the next section.
+
+If we normalize the terms into a standard format, then we can find documents that contain terms that are not exactly the same as the user requested, but are similar enough to still be relevant. 
+Forms of normalization: uncapitalize tokens, stem-reduce tokents, use token synomyms
+
+Analysis must be performed on content when building inverted indexes and the query strings used when searching.
+
+Analysis and Analyzers
+edit
+
+Analysis is a process that consists of the following:
+
+    First, tokenizing a block of text into individual terms suitable for use in an inverted index,
+    Then normalizing these terms into a standard form to improve their “searchability,” or recall 
+
+This job is performed by analyzers. An analyzer is really just a wrapper that combines three functions into a single package:
+
+Character filters
+    First, the string is passed through any character filters in turn. Their job is to tidy up the string before tokenization. A character filter could be used to strip out HTML, or to convert & characters to the word and. 
+Tokenizer
+    Next, the string is tokenized into individual terms by a tokenizer. A simple tokenizer might split the text into terms whenever it encounters whitespace or punctuation. 
+Token filters
+    Last, each term is passed through any token filters in turn, which can change terms (for example, lowercasing Quick), remove terms (for example, stopwords such as a, and, the) or add terms (for example, synonyms like jump and leap). 
+    
+    Testing Analyzers
+
+Especially when you are new to Elasticsearch, it is sometimes difficult to understand what is actually being tokenized and stored into your index. To better understand what is going on, you can use the analyze API to see how text is analyzed. Specify which analyzer to use in the query-string parameters, and the text to analyze in the body:
+
+GET /_analyze
+{
+  "analyzer": "standard",
+  "text": "Text to analyze"
+}
+
+Mapping
+
+In order to be able to treat date fields as dates, numeric fields as numbers, and string fields as full-text or exact-value strings, Elasticsearch needs to know what type of data each field contains. This information is contained in the mapping.
+
+As explained in Data In, Data Out, each document in an index has a type. Every type has its own mapping, or schema definition. A mapping defines the fields within a type, the datatype for each field, and how the field should be handled by Elasticsearch. A mapping is also used to configure metadata associated with the type.
+
+Core Simple Field Types
+
+Elasticsearch supports the following simple field types:
+
+    String: string
+    Whole number: byte, short, integer, long
+    Floating-point: float, double
+    Boolean: boolean
+    Date: date 
+
+When you index a document that contains a new field—one previously not seen—Elasticsearch will use dynamic mapping to try to guess the field type from the basic datatypes available in JSON, using the following rules:
+
+JSON type                         Field type
+
+Boolean: true or false            boolean
+
+Whole number: 123                 long
+
+Floating point: 123.45            double
+
+String, valid date: 2014-09-15    date
+
+String: foo bar                   string 
+
+
+Viewing the Mapping
+
+We can view the mapping that Elasticsearch has for one or more types in one or more indices by using the /_mapping endpoint. At the start of this chapter, we already retrieved the mapping for type tweet in index gb:
+
+GET /gb/_mapping/tweet
+
+Complex Core Field Types
+
+Besides the simple scalar datatypes that we have mentioned, JSON also has null values, arrays, and objects, all of which are supported by Elasticsearch.
+Multivalue Fields
+
+It is quite possible that we want our tag field to contain more than one tag. Instead of a single string, we could index an array of tags:
+{ "tag": [ "search", "nosql" ]}
+
+Empty Fields
+
+Arrays can, of course, be empty. This is the equivalent of having zero values. In fact, there is no way of storing a null value in Lucene, so a field with a null value is also considered to be an empty field.
+
+These three fields would all be considered to be empty, and would not be indexed:
+
+"null_value":               null,
+"empty_array":              [],
+"array_with_null_value":    [ null ]
+
+Multilevel Objects
+
+The last native JSON datatype that we need to discuss is the object — known in other languages as a hash, hashmap, dictionary or associative array.
+
+Inner objects are often used to embed one entity or object inside another.
+
+Mapping for Inner Objects
+
+Elasticsearch will detect new object fields dynamically and map them as type object, with each inner field listed under properties:
+
+Mapping for Inner Objects
+
+Elasticsearch will detect new object fields dynamically and map them as type object, with each inner field listed under properties:
+
+
 RESTFUL API Endpoints:
 GET /_cluster/health  # Cluster health
 GET/_count  # Counts
@@ -456,6 +577,12 @@ POST /website/blog/1/_update   # Partial update to document
 
 GET /_mget  # Retrieve multipe documents
 { ... }   
+
+GET /gb/_mapping/tweet # request the mapping (or schema definition) for the tweet type in the gb index
+
+GET /_analyze # get analyzer details
+{ ... }
+
 
 # More on search:
  /_search
