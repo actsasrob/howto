@@ -139,3 +139,115 @@ curl -XGET 'localhost:9200/_count' -d '
         "match_all": {}
     }
 }'
+
+# Index a JSON document:
+
+So for our employee directory, we are going to do the following:
+
+    Index a document per employee, which contains all the details of a single employee.
+    Each document will be of type employee.
+    That type will live in the megacorp index.
+    That index will reside within our Elasticsearch cluster. 
+
+In practice, this is easy (even though it looks like a lot of steps). We can perform all of those actions in a single command:
+
+PUT /megacorp/employee/1
+{
+    "first_name" : "John",
+    "last_name" :  "Smith",
+    "age" :        25,
+    "about" :      "I love to go rock climbing",
+    "interests": [ "sports", "music" ]
+}
+
+View in Sense 
+
+Notice that the path /megacorp/employee/1 contains three pieces of information:
+
+megacorp
+    The index name 
+employee
+    The type name 
+1
+    The ID of this particular employee 
+
+The request body—the JSON document—contains all the information about this employee. His name is John Smith, he’s 25, and enjoys rock climbing.
+
+Retrieving a Document
+edit
+
+Now that we have some data stored in Elasticsearch, we can get to work on the business requirements for this application. The first requirement is the ability to retrieve individual employee data.
+
+This is easy in Elasticsearch. We simply execute an HTTP GET request and specify the address of the document—the index, type, and ID. Using those three pieces of information, we can return the original JSON document:
+
+GET /megacorp/employee/1
+
+In the same way that we changed the HTTP verb from PUT to GET in order to retrieve the document, we could use the DELETE verb to delete the document, and the HEAD verb to check whether the document exists. To replace an existing document with an updated version, we just PUT it again.
+
+earch Lite
+edit
+
+A GET is fairly simple—you get back the document that you ask for. Let’s try something a little more advanced, like a simple search!
+
+The first search we will try is the simplest search possible. We will search for all employees, with this request:
+
+GET /megacorp/employee/_search
+
+View in Sense 
+
+You can see that we’re still using index megacorp and type employee, but instead of specifying a document ID, we now use the _search endpoint. The response includes all three of our documents in the hits array. By default, a search will return the top 10 results.
+
+Next, let’s try searching for employees who have “Smith” in their last name. To do this, we’ll use a lightweight search method that is easy to use from the command line. This method is often referred to as a query-string search, since we pass the search as a URL query-string parameter:
+
+GET /megacorp/employee/_search?q=last_name:Smith
+
+Search with Query DSL
+edit
+
+Query-string search is handy for ad hoc searches from the command line, but it has its limitations (see Search Lite). Elasticsearch provides a rich, flexible, query language called the query DSL, which allows us to build much more complicated, robust queries.
+
+The domain-specific language (DSL) is specified using a JSON request body. We can represent the previous search for all Smiths like so:
+
+GET /megacorp/employee/_search
+{
+    "query" : {
+        "match" : {
+            "last_name" : "Smith"
+        }
+    }
+}
+
+
+This will return the same results as the previous query. You can see that a number of things have changed. For one, we are no longer using query-string parameters, but instead a request body. This request body is built with JSON, and uses a match query (one of several types of queries, which we will learn about later).
+
+Phrase Search
+
+Finding individual words in a field is all well and good, but sometimes you want to match exact sequences of words or phrases. For instance, we could perform a query that will match only employee records that contain both “rock” and “climbing” and that display the words next to each other in the phrase “rock climbing.”
+
+To do this, we use a slight variation of the match query called the match_phrase query:
+
+GET /megacorp/employee/_search
+{
+    "query" : {
+        "match_phrase" : {
+            "about" : "rock climbing"
+        }
+    }
+}
+
+Analytics
+
+Finally, we come to our last business requirement: allow managers to run analytics over the employee directory. Elasticsearch has functionality called aggregations, which allow you to generate sophisticated analytics over your data. It is similar to GROUP BY in SQL, but much more powerful.
+
+For example, let’s find the most popular interests enjoyed by our employees:
+
+GET /megacorp/employee/_search
+{
+  "aggs": {
+    "all_interests": {
+      "terms": { "field": "interests" }
+    }
+  }
+}
+
+
