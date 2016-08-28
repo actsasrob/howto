@@ -372,7 +372,71 @@ GET /_mget
 # Bulk insert/update/create/delete
 https://www.elastic.co/guide/en/elasticsearch/guide/current/bulk.html
 
+# How Primary and Replica Shards Interact
+We can send our requests to any node in the cluster. Every node is fully capable of serving any request. Every node knows the location of every document in the cluster and so can forward requests directly to the required node. In the following examples, we will send all of our requests to Node 1, which we will refer to as the coordinating node.
 
+When sending requests, it is good practice to round-robin through all the nodes in the cluster, in order to spread the load.
+
+# Search Lite:
+
+This query finds all documents of type tweet that contain the word elasticsearch in the tweet field:
+    GET /_all/tweet/_search?q=tweet:elasticsearch
+ The next query looks for john in the name field and mary in the tweet field. The actual query is just
+
++name:john +tweet:mary
+
+but the percent encoding needed for query-string parameters makes it appear more cryptic than it really is:
+
+GET /_search?q=%2Bname%3Ajohn+%2Btweet%3Amary
+
+The + prefix indicates conditions that must be satisfied for our query to match. Similarly a - prefix would indicate conditions that must not match. All conditions without a + or - are optional—the more that match, the more relevant the document.
+ 
+ 
+ The _all Field
+edit
+
+This simple search returns all documents that contain the word mary:
+
+GET /_search?q=mary
+
+In the previous examples, we searched for words in the tweet or name fields. However, the results from this query mention mary in three fields:
+
+    A user whose name is Mary
+    Six tweets by Mary
+    One tweet directed at @mary 
+
+How has Elasticsearch managed to find results in three different fields?
+
+When you index a document, Elasticsearch takes the string values of all of its fields and concatenates them into one big string, which it indexes as the special _all field. For example, when we index this document:
+
+{
+    "tweet":    "However did I manage before Elasticsearch?",
+    "date":     "2014-09-14",
+    "name":     "Mary Jones",
+    "user_id":  1
+}
+
+it’s as if we had added an extra field called _all with this value:
+
+"However did I manage before Elasticsearch? 2014-09-14 Mary Jones 1"
+The query-string search uses the _all field unless another field name has been specified.
+Tip
+
+The _all field is a useful feature while you are getting started with a new application. Later, you will find that you have more control over your search results if you query specific fields instead of the _all field. When the _all field is no longer useful to you, you can disable it, as explained in Metadata: _all Field.
+More Complicated Queries
+edit
+
+The next query searches for tweets, using the following criteria:
+
+    The name field contains mary or john
+    The date is greater than 2014-09-10
+    The _all field contains either of the words aggregations or geo 
+
++name:(mary john) +date:>2014-09-10 +(aggregations geo)
+
+As a properly encoded query string, this looks like the slightly less readable result:
+
+?q=%2Bname%3A(mary+john)+%2Bdate%3A%3E2014-09-10+%2B(aggregations+geo
 
 RESTFUL API Endpoints:
 GET /_cluster/health  # Cluster health
@@ -392,3 +456,21 @@ POST /website/blog/1/_update   # Partial update to document
 
 GET /_mget  # Retrieve multipe documents
 { ... }   
+
+# More on search:
+ /_search
+    Search all types in all indices 
+/gb/_search
+    Search all types in the gb index 
+/gb,us/_search
+    Search all types in the gb and us indices 
+/g*,u*/_search
+    Search all types in any indices beginning with g or beginning with u 
+/gb/user/_search
+    Search type user in the gb index 
+/gb,us/user,tweet/_search
+    Search types user and tweet in the gb and us indices 
+/_all/user,tweet/_search
+    Search types user and tweet in all indices 
+    
+# Query String Reference Doc: https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html#query-string-syntax
