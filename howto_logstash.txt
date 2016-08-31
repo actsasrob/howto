@@ -60,5 +60,9 @@ bin/logstash -f first-pipeline.conf
 
 Try a test query to Elasticsearch based on the fields created by the grok filter plugin:
 
-curl -XGET 'localhost:9200/logstash-$DATE/_search?q=response=200'
+DATE=2016.08.31
+curl -XGET "localhost:9200/logstash-$DATE/_search?q=response=200"
+
+curl -XGET "localhost:9200/logstash-$DATE/_search?q=geoip.city_name=Buffalo"
+
 
