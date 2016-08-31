@@ -65,4 +65,8 @@ curl -XGET "localhost:9200/logstash-$DATE/_search?q=response=200"
 
 curl -XGET "localhost:9200/logstash-$DATE/_search?q=geoip.city_name=Buffalo"
 
+# Sense queries:
+GET /logstash-2016.08.31/_search?q=response=200
+GET /logstash-2016.08.31/_search?q=geoip.city_name=Buffalo
+
 
