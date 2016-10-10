@@ -1,0 +1,793 @@
+grails create-app TekDays                                   # Create a new app
+cd TekDays
+grails run-app                                              # Run the app
+grails create-domain-class com.tekdays.TekEvent             # Create a domain class
+vi test/unit/com/tekdays/TekEventControllerSpec.groovy      # Edit/add unit tests
+grails test-app unit: TekEvent                              # Run unit tests
+grails create-controller com.tekdays.TekEvent               # Create a controller
+vi grails-app/conf/BootStrap.groovy                         # Create test data
+grails generate-all "*"                                     # Generate code for dynamic scaffolding
+
+vi grails-app/views/layouts/main.gsp                        # Change look-and-feel across entire app
+web-app/css/main.css                                        # CSS code for the scaffolded views
+grails create-service com.tekdays.Task                      # Create a service class
+grails create-integration-test com.tekdays.TaskService      # Create integration test
+grails test-app integration                                 # Run all the integration tests (against 'test' database)
+
+Introducing GORM
+What we just did is almost trivial as far as code goes but very interesting
+behind the scenes. To set the value for the organizer property of each TekEvent ,
+we are calling the method TekUser.findByFullName() . This method doesn’t actually
+exist. We mentioned earlier that Grails adds methods to our domain classes
+at runtime. This is not one of them. Instead, what Grails is doing here is
+synthesizing behavior at runtime. When a method call beginning with findBy
+is made on one of our domain classes, Grails will parse the rest of the method
+name to see whether it matches any of the properties of the class. Then it
+executes the behavior that we would expect if a method with that name and
+parameters did exist. This is called a dynamic finder, and it is part of one of
+Grails’ core components called Grails Object Relational Mapping (GORM).
+
+As we mentioned in Metaprogramming, on page 9, Grails takes advantage of Groovy’s
+metaprogramming capabilities to synthesize finders for our domain class properties
+at runtime. We can call methods that begin with findBy, findAllBy, or countBy, followed
+by one or more properties and optional operators.
+Some examples will make this clearer. All of these would be valid methods on TekEvent :
+• countByCity('New York')
+• findAllByStartDateGreaterThan(new Date())
+• findByCityAndDescriptionLike("Minneapolis", "%Groovy%")
+Properties in dynamic finders can be joined by And or Or .
+
+
+# Operators in dynamic methods:
+https://grails.org/wiki/OperatorNamesInDynamicMethods
+
+=======
+
+void "test toString"() {
+        when: "a tekEvent has a name and a city"
+                def tekEvent = new TekEvent(name:'Groovy One',
+                                city: 'San Francisco',
+                                organizer: [fullName: 'John Doe']
+                                  as TekUser)
+
+
+In the above snippet from the TekEvent unit test, Groovy allows us to coerce a Map to a class or interface with the as operator.
+We’re giving the Map a fullName element for clarity, but we could just as well
+have used an empty Map , since we’re not referring to any of the organizer ’s
+properties in our test.
+
+======
+
+Grails supports many-to-many relationships implicitly by having each class
+include the other in its hasMany block. In this arrangement, each class will
+have a collection of the other, but one side has to be declared as the owning
+side. For this, Grails uses the static variable belongsTo .
+
+=======
+
+The inList constraint takes as its
+value a list of String s. Only values matching one of the items in the list will be
+allowed; any other values will cause a constraint violation when saving. But
+wait, there’s more. Grails will also use this constraint to render an HTML
+<select> element in the scaffolded views.
+
+=======
+
+onstraints are used in generating scaffolded views for a domain class as well as for
+hints in generating the database schema. But the real power of constraints is the
+part they play in validation. When we call save() or validate() on one of our domain class
+instances, Grails will try to validate the instance against any constraints we have
+assigned. If any of the constraints are not met, the save() or validate() call will fail, and
+appropriate error information will be stored in the instance’s errors[a] property.
+Grails provides several handy constraints that we can take advantage of, but it also
+gives us the ability to define custom constraints [b], so the possibilities are endless.
+Here are some of the more useful built-in constraints:
+blank (true/false): Allows an empty string value.
+nullable (true/false): Allows null values.
+max : Specifies the maximum value.
+min : Specifies the minimum value.
+vsize : Takes a Groovy range to determine bounds.
+maxSize : Specifies the maximum size of a String or Collection .
+minSize : Specifies the minimum size of a String or Collection .
+inList : Only allows values contained in the supplied list.
+matches : Requires value to match a regular expression.
+unique (true/false): Enforces uniqueness in the database.
+url (true/false): Only accepts a valid URL.
+email (true/false): Only accepts a valid email address.
+creditCard (true/false): Only accepts a valid credit card number.
+validator : Takes a closure for custom validation. The first parameter is the value,
+and the second (optional) parameter is the instance being validated.
+a.
+Error details can be found via allErrors :
+errors.allErrors.each{
+//iterate over errors
+}
+b.
+See http://grails.org/doc/2.3.1/ref/Constraints/validator.html .
+
+=======
+
+Beyond Scafolding
+
+Grails gives us an easy way to generate the code that does what the dynamic
+scaffolding has been doing for us. We won’t see any changes to the application,
+but we will have the code necessary to make changes. To get started, we will
+use the grails generate-all script.
+
+The generate-all script can be called in a few different ways. If you call it with
+no arguments, you will be prompted for a name. (By convention, this would
+be a domain class name.) For the more argumentative types, you can call
+generate-all with a name as the argument. Both of these approaches generate
+a controller, four .gsp view files, and a template, which is also a .gsp file.
+
+A third option.  Sometimes referred to as uber-generate-all, this modification to the generate-all
+script. grails generate-all "*"
+
+=====
+
+The work done by a controller is done in an action. Actions are methods or
+closure properties of the controller. (In the code that Grails generates for us,
+they are methods.) Controller actions can be accessed via URLs in the pattern:
+/appname/controllerBaseName/action . The first letter of the controller’s name will be
+lowercased, and the word Controller will be left off.
+There are four options to properly exit a controller action. We can call the
+render() method, which is added to all controllers and takes the name of a view
+along with a Map containing any data the view needs. We can call the redirect()
+method to issue an HTTP redirect to another URL, or the respond() method
+(used in the generated actions), which looks at the requested content type to
+determine what to return. (These last two methods are also added to all con-
+trollers; we’ll look at them more closely in the following sections.) And we can
+return null, or a Map containing data, which is referred to as a model. In this
+last case, Grails will attempt to render a view with the same name as the
+action. It will look for this view in a directory named after the root name of
+the controller; for example, returning from the index action of the TekEventController
+will cause Grails to render the view /grails-app/views/tekEvent/index.gsp .
+
+The Index Action
+The index action is called when we load the TekEvent list view. It is the default
+action that is called when we navigate to this controller. For example, if we
+follow the link on the default home page for the TekEventController , we’ll be calling
+http://localhost:8080/TekDays/tekEvent . This will call the index action.
+
+The last line calls respond() , which will use Grails’ built-in support for content
+negotiation 3 to determine the format in which to send back our data. In this
+case, the data we’re returning is being supplied by a call to TekEvent . list() 4 and
+is being returned to our view as HTML. The list() is being passed the params
+5
+Map , from which it will pull any parameters that it can use. Notice the model
+argument being given to respond() : this method can, in the case of an HTML
+response being rendered, take the two arguments model and view , and the index
+action is passing a model with the key tekEventInstanceCount , which contains the
+result of TekEvent.count() . This value will be used in the pagination built into
+the list view
+
+This brings up another powerful feature of Grails. Many methods in Grails take a Map
+as a parameter. These methods will look in the Map for the elements they need and
+ignore the rest. That means that in one action we can pass the params Map to several
+different methods, and each will just take from it what it needs.
+
+The Show Action
+
+The show action takes a TekEvent instance as a parameter. When an action takes
+a domain class instance as a parameter, Grails looks for an id in the request,
+and then looks up the instance with that id . In the show action, respond() returns
+this instance, and the action then renders the show view.
+
+The Create Action
+
+Here, respond() returns a newly-created TekEvent instance, assigning any values
+in the params property to the corresponding properties of the instance.
+The action ends by rendering the create view.
+
+The Save Action
+
+Like the show action, the save action takes a TekEvent instance as a parameter.
+(The use of @Transactional on this action omits the readOnly element which we
+saw set to true at the beginning of the class; by default, it is false .)
+
+Adding flush:true to any persistence-related call will force Hibernate to pass the change
+on to the data source. It’s not usually necessary but good to know about when you
+need it.
+
+We then call the withFormat() [a] method on the request . form is used in the case of
+a form submission; in this case, when the form in the create view is submitted
+and we save the resulting TekEvent instance
+
+[a] http://docs.grails.org/2.3.1/ref/Controllers/withFormat.html
+
+we use the <g:message> tag, [b] called
+as a method, to store a “success” message in the flash Map [c]. We then call redi-
+rect() , passing it our new tekEventInstance . This will send us to the show action.
+(For all other content types, we respond() with the new tekEventInstance and an
+HTTP status 201 — CREATED .)
+
+[b] http://docs.grails.org/2.3.1/ref/Tags/message.html
+
+[c] flash is often referred to as a scope. It’s more accurate to refer to it as a Map that exists
+in a special scope. Values stored in flash are available for this request and one following
+request, which allows us to store a message before redirecting and have that message
+be available to the redirected view.
+
+The Edit Action
+
+The edit action doesn’t do any editing itself: that’s left up to the update action.
+Instead, edit loads up the necessary data and passes it to the edit view. Except
+for the name (which determines the view rendered), the edit action is identical
+to the show action.
+
+The Update Action
+
+Like earlier actions, update tries to retrieve the TekEvent instance passed to it
+as an argument. If the instance hasErrors() , we use respond() to direct back to
+the edit view and display them. The update action finishes in the same way as
+does the save action, differing only in the “success” message that is stored in
+flash (an “updated” message rather than a “created” message) and in the HTTP
+status returned after a successful save() ( 200 OK ).
+
+The Delete Action
+
+The delete action is available, by default, in the edit and show views. It must
+be called via a DELETE method. Going back to the beginning of our TekEvent-
+Controller listing, 
+class TekEventController {
+
+    static allowedMethods = [..., delete: "DELETE"]
+
+we see the allowedMethods property. This is a Map containing
+actions and the HTTP methods that can be used to call them. This prevents
+a user from entering something like http://localhost:8080/TekDays/tekEvent/delete/1
+and deleting our event.
+
+The delete action starts out much like the save and update actions—attempting
+to retrieve a TekEvent instance and calling notFound() if it can’t find one. If an
+instance is found, we delete it and then redirect to the index action with a
+“success” message (or return the status NO_CONTENT ). There is no delete view,
+for obvious reasons.
+
+The notFound Method
+
+    protected void notFound() {
+        request.withFormat {
+            form {
+                flash.message = message(code: 'default.not.found.message',
+                  args: [message(code: 'tekEventInstance.label',
+                  default: 'TekEvent'), params.id])
+                redirect action: "index", method: "GET"
+            }
+            '*'{ render status: NOT_FOUND }
+        }
+    }
+
+As we can see here, the notFound() method simply makes the same use of with-
+Format() that we’ve been seeing in the generated actions. (Having this split out
+into its own separate method like this means that any of our actions can
+return NOT_FOUND without having to duplicate this code.) Its form stores a “not
+found” message in the flash Map and redirects to the index action. For other
+content types, it simply returns NOT_FOUND .
+So, that’s a tour of a generated Grails controller.
+
+
+
+
+Grails Views with Groovy Server Pages
+
+Grails uses Groovy Server Pages (GSP) for its view layer. If you’ve ever worked
+with JavaServer Pages, well, you have my sympathy, but GSP will seem
+familiar—only easier to work with. Grails also uses SiteMesh, [10] the page
+decoration framework from OpenSymphony, to assist in the page layout.
+SiteMesh will merge each of our .gsp files into a file called main.gsp (located in
+TekDays/grails-app/views/layouts . This is what gives a consistent look to all of our
+pages, as we saw with the dynamic scaffolding. We’ll begin our tour of the
+generated views with main.gsp , followed by the four views and the template
+[10] http://wiki.sitemesh.org/display/sitemesh/Home
+generated for the TekEvent class. Then we’ll look at a couple of the other views
+that take advantage of additional Grails features.
+
+main.gsp starts out with some conditional comments for various versions of
+Microsoft’s Internet Explorer (one for each user) [11] and a couple of HTML <meta>
+tags. Next is a <title> in the <head> section. This tag contains a <g:layoutTitle>
+11. See http://msdn.microsoft.com/en-us/library/ms537512(VS.85).aspx .
+tag, which will substitute the <title> from the view that is being merged. After
+another <meta> tag it links in a style sheet and favicon [12] that will be used by
+all views (it also includes a couple of special icons for Apple devices running
+iOS). Then there is the <g:layoutHead> tag. This will merge in the contents of
+the target view’s <head> section. The <body> section contains an application
+logo, [13] a <g:layoutBody> tag, which merges in the <body> contents of the target
+view, and a <div> with the CSS class footer . This last <div> contains a spinner
+image and also—along with the <head> section—contains an <r:layoutResources>
+tag, which tells Grails’ Resources framework [14] to include any resources that
+the target view has required using the <r:require> tag.
+
+[10] http://wiki.sitemesh.org/display/sitemesh/Home
+[12] http://en.wikipedia.org/wiki/Favicon
+[13] role is an HTML attribute that is used by screen readers to identify the function of a
+particular element. See http://www.w3.org/TR/xhtml-role/ .
+[14] See http://grails.org/doc/2.3.1/guide/theWebLayer.html#resources .
+
+The List View
+
+You’ll find this code in TekDays/grails-app/views/tekEvent/index.gsp.
+
+<li><a class="home" href="${createLink(uri: '/')}"><g:message code="default.home.label"/></a></li>
+<li><g:link class="create" action="create"><g:message code="default.new.label" args="[entityName]" /></g:link></li>
+
+This code creates the button bar just below the Grails logo. We can see two
+ways that Grails provides for creating links. The createLink() method takes a
+relative path and creates a URL, which is assigned to the href attribute of an
+anchor tag. The <g:link> tag creates an anchor tag using the values of the controller ,
+action , and id attributes (if they’re provided). If a controller is not provided, the
+current controller is assumed. In this case, a link to the create action of the
+TekEventController will be created. The text for the links is provided by the
+<g:message> tag
+
+<g:if test="${flash.message}">
+   <div class="message" role="status">${flash.message}</div>
+</g:if>
+
+This code doesn’t show up in our figure above, but it is important to take
+note of. Recall that during our discussion of controllers, we often had code
+that would store text in the message element of flash . This is where that text
+will show up. The <g:if> tag checks for the existence of flash.message and, if
+found, displays it.
+
+See page 69 for soure code:
+<g:sortableColumn property="name" title="${message(code: 'tekEvent.name.label', default: 'Name')}" />
+<snip>
+<g:sortableColumn property="startDate" title="${message(code: 'tekEvent.startDate.label', default: 'Start Date')}" />
+
+In the generated views, Grails uses the <g:message> GSP tag to read text for labels,
+buttons, and other elements from message bundles, which are contained in grails-
+app/i18n under our TekDays application directory. Internationalization is built into
+Grails; message bundles for other languages are also stored in the i18n directory, and
+contain text for various messages that we will need to show the user in our app. The
+use of <g:message> here ensures that if somebody were to be using our app with a
+different locale, a our user interface would be presented in the correct language.
+Using the message bundles for our application’s labels and other text also means
+that we have a single field to edit if we want to change a particular label or message.
+Many of the instances of <g:message> in the generated views (columns in the list view’s
+table, for example) provide sensible default text in case of a message not being in our
+i18n files.
+
+The <g:sortableColumn> tag is what Grails uses to provide sorting on our list
+view. Note that, by default, this works only with regular properties, not object
+references or collections. That is why we see a <th> tag used for the organizer
+property.
+
+<g:each in="${tekEventInstanceList}" status="i" var="tekEventInstance">
+   <tr class="${(i % 2) == 0 ? 'even' : 'odd'}">
+      <td><g:link action="show" id="${tekEventInstance.id}">
+        ${fieldValue(bean: tekEventInstance, field: "name")}</g:link></td>
+      <td>${fieldValue(bean: tekEventInstance, field: "city")}</td>
+      <td>${fieldValue(bean: tekEventInstance, field: "description")}</td>
+      <td>${fieldValue(bean: tekEventInstance, field: "organizer")}</td>
+      <td>${fieldValue(bean: tekEventInstance, field: "venue")}</td>
+      <td><g:formatDate date="${tekEventInstance.startDate}" /></td>
+   </tr>
+</g:each>
+
+This code is the heart of the list view. We start with the <g:each> tag, which
+iterates over the list that was passed in from the controller. By convention,
+this list is named tekEventInstanceList . Each item in the tekEventInstanceList is
+assigned to the tekEventInstance variable, and the body of the <g:each> tag fills
+in the table row with the properties of the tekEventInstance . Notice that a Groovy
+expression is used to determine the CSS class of the <tr> —powerful stuff!
+Inside the <td> tags, the fieldValue() method is used to render the value of each
+TekEvent property. This method retrieves the value from the given field of the
+given bean —in this case, the tekEventInstance —and also calls the method
+encodeAsHTML() for us, because that’s almost always what we want. (We’ll learn
+about encodeAsHTML() when we look at the show view.)
+One property, the last in the list, isn’t using the fieldValue() method. startDate is
+a Date type, so Grails renders it using the <g:formatDate> tag, which handles
+the conversion from Date to String for us. [15]
+
+<div class="pagination">
+   <g:paginate total="${tekEventInstanceCount ?: 0}" />
+</div>
+The final portion of the index.gsp we’ll look at is another one that we can’t see
+in our figure showing the list view. The <g:paginate> tag would cause pagination
+buttons to show up at the bottom of the list view if we had enough events
+displayed to warrant it. This tag uses the count that we passed in from the
+controller’s index action.
+
+[15] See http://grails.org/doc/2.3.1/ref/Tags/formatDate.html.
+
+The Show View
+
+The show view, is in TekDays/grails-app/views/tekEvent/show.gsp.
+
+<g:if test="${tekEventInstance?.name}">
+<li class="fieldcontain">
+   <span id="name-label" class="property-label"><g:message
+     code="tekEvent.name.label" default="Name" /></span>
+     <span class="property-value" aria-labelledby="name-label">
+       <g:fieldValue bean="${tekEventInstance}" field="name"/></span>
+</li>
+</g:if>
+<g:if test="${tekEventInstance?.city}">
+   <li class="fieldcontain">
+      <span id="city-label" class="property-label"><g:message
+         code="tekEvent.city.label" default="City" /></span>
+         <span class="property-value" aria-labelledby="city-label">
+            <g:fieldValue bean="${tekEventInstance}" field="city"/></span>
+</li>
+</g:if>
+
+The code that displays each property is wrapped in a set of <g:if> tags that
+check for a value in the property, so that we don’t display an empty list item
+for the property if there’s nothing to show. Within this code we see a couple
+of examples of how Grails displays text properties. Notice the CSS class
+hierarchy. The <li> tag has a fieldcontain class, and the <span> tags have a prop-
+erty-label or property-value class.[16]
+
+[16] aria-labelledby is another HTML attribute used by screen readers—here it refers to the id
+of the element that is a label for this <span> . See http://www.w3.org/TR/2010/WD-wai-aria-20100916/
+states_and_properties#aria-labelledby .
+
+<g:if test="${tekEventInstance?.organizer}">
+<li class="fieldcontain">
+   <span id="organizer-label" class="property-label"><g:message
+      code="tekEvent.organizer.label" default="Organizer" /></span>
+      <span class="property-value" aria-labelledby="organizer-label">
+         <g:link controller="tekUser" action="show"
+            id="${tekEventInstance?.organizer?.id}">
+               ${tekEventInstance?.organizer?.encodeAsHTML()}</g:link></span>
+</li>
+</g:if>
+
+Here we have an example of the way Grails displays a related object. The
+organizer property is rendered as a link to the TekUser show view. The <g:link>
+tag has its controller and action attributes set accordingly. The id is set to a Groovy
+expression that reads the id property of the organizer property of the tekEventIn-
+stance that we passed in from the controller. Notice the ? after the tekEventInstance
+and organizer references; this is Groovy’s safe navigation operator. When this
+expression is evaluated, if either of these items is null, the whole expression
+evaluates to null, and no exception is thrown!
+Another thing to notice here is the use of the encodeAsHTML() method. This
+method is added to all String objects and prevents any HTML code from being
+processed while the page is rendering. This is helpful in defending against
+cross-site scripting attacks. [17]
+
+<g:if test="${tekEventInstance?.volunteers}">
+<li class="fieldcontain">
+   <span id="volunteers-label" class="property-label"><g:message
+      code="tekEvent.volunteers.label" default="Volunteers" /></span>
+
+        <g:each in="${tekEventInstance.volunteers}" var="v">
+         <span class="property-value" aria-labelledby="volunteers-label">
+            <g:link controller="tekUser" action="show"
+               id="${v.id}">${v?.encodeAsHTML()}</g:link></span>
+        </g:each>
+</li>
+</g:if>
+
+One-to-many relationships are rendered simply using a <g:each> tag. Here we
+see the volunteers property being displayed using one property-label <span> and a
+<span> with class property-value for each item in the collection.
+
+<g:if test="${tekEventInstance?.respondents}">
+<li class="fieldcontain">
+   <span id="respondents-label" class="property-label"><g:message
+      code="tekEvent.respondents.label" default="Respondents" /></span>
+
+      <span class="property-value" aria-labelledby="respondents-label">
+         <g:fieldValue bean="${tekEventInstance}" field="respondents"/></span>
+</li>
+</g:if>
+
+Rounding out the show view, we have the respondents collection. This property
+is a collection of String objects containing email addresses. This type of collec-
+tion is rendered as if it were a single String field. Grails handles converting it
+to a comma-separated list,
+If we wanted to, we could use a <g:each> tag to show these as a list or in a table.
+
+[17] http://en.wikipedia.org/wiki/Cross-site_scripting
+
+
+The Create View
+
+The code for this view is in TekDays/grails-app/views/tekEvent/create.gsp .
+
+<g:hasErrors bean="${tekEventInstance}">
+<ul class="errors" role="alert">
+   <g:eachError bean="${tekEventInstance}" var="error">
+   <li <g:if test="${error in org.springframework.validation.FieldError}">
+      data-field-id="${error.field}"</g:if>><g:message error="${error}"/></li>
+   </g:eachError>
+</ul>
+</g:hasErrors>
+
+Here we see another type of message block.
+When a domain instance fails to save, errors are stored in an errors property.
+The <g:hasErrors> tag is a conditional tag that examines the domain instance
+assigned to its bean attribute and renders its body if errors are found. In the
+body of the tag, we find an unordered list populated by a <g:eachError> tag,
+which works rather like the <g:each> to display the errors in a list at the top
+of the page.
+
+<g:form url="[resource:tekEventInstance, action:'save']" >
+
+The <g:form> tag sets up an HTML form. This tag has controller , action , and id (or
+resource ) attributes, which will result in the URL to submit the form to. It can
+also take a Map — url —that contains these as elements, as we see being done
+here.
+
+<fieldset class="form">
+   <g:render template="form"/>
+</fieldset>
+
+Within the <g:form> tags, we are using the <g:render> tag to (you guessed it)
+render the form template, which is used by both the create and edit views for
+form elements
+
+The Edit View
+
+The last of the scaffolded views is the edit view.
+
+You will find the code in TekDays/grails-app/views/tekEvent/edit.gsp . Open the file and
+let’s look at a line below the opening <g:form> tag:
+
+<g:hiddenField name="version" value="${tekEventInstance?.version}" />
+
+Here we see <g:hiddenField> being used to create an HTML <input type="hidden">
+for the version of the tekEvenInstance . This is, of course, unique to the edit view,
+because it submits to the update action of the TekEventController , which is dealing
+with an existing TekEvent instance. That action will check version before we
+update the instance to avoid conflicts with changes by another user.
+
+
+The form Template
+The main body of both the create and edit views is in the form template, which
+is located in TekDays/grails-app/views/tekEvent/_form.gsp . Open this file, and let’s see
+what new and exciting things it has in store for us:
+
+<div class="fieldcontain ${hasErrors(bean: tekEventInstance, field: 'name', 'error')} ">
+   <label for="name">
+      <g:message code="tekEvent.name.label" default="Name" />
+   </label>
+   <g:textField name="name" value="${tekEventInstance?.name}"/>
+</div>
+
+The create and edit views use a two-column layout similar to that of the show
+view. The difference is that where the show view uses an ordered list to display
+our event’s properties, this template has a <div> for each property, containing
+HTML input elements. <g:textField> , for example, is a GSP tag that renders an
+HTML text input field with the specified name and value attributes. Notice how
+the <g:hasErrors> tag is used in a Groovy expression to determine whether to
+use the error CSS class. That doesn’t look like a tag, does it? 
+All GSP tags can also be called as methods.
+
+<div class="fieldcontain ${hasErrors(bean: tekEventInstance, field: 'description', 'error')} ">
+   <label for="description">
+      <g:message code="tekEvent.description.label" default="Description" />
+   </label>
+   <g:textArea name="description" cols="40" rows="5" maxlength="5000"
+      value="${tekEventInstance?.description}"/>
+</div>
+
+For the description property, Grails is using <g:textArea> , a GSP tag which
+(unsurprisingly enough) renders a <textarea> element.
+
+<div class="fieldcontain ${hasErrors(bean: tekEventInstance, field: 'organizer',
+   'error')} required">
+   <label for="organizer">
+      <g:message code="tekEvent.organizer.label" default="Organizer" />
+      <span class="required-indicator">*</span>
+   </label>
+   <g:select id="organizer" name="organizer.id" from="${com.tekdays.TekUser.list()}"
+      optionKey="id" required="" value="${tekEventInstance?.organizer?.id}"
+      class="many-to-one"/>
+</div>
+
+For properties that are references to another domain class, Grails uses a
+<g:select> tag, which will render a <select> element loaded with all the available
+
+choices for that class. In this case, we end up with a list of TekUser instances
+that can be assigned to the organizer property.
+
+<div class="fieldcontain ${hasErrors(bean: tekEventInstance, field: 'startDate',
+   'error')} required">
+      <label for="startDate">
+         <g:message code="tekEvent.startDate.label" default="Start Date" />
+         <span class="required-indicator">*</span>
+      </label>
+      <g:datePicker name="startDate" precision="day"
+         value="${tekEventInstance?.startDate}" />
+</div>
+
+The <g:datePicker> tag renders that series of select elements
+
+Grails is using the tag’s precision attribute
+to indicate that we only want to specify a particular day (by default, the tag
+will render select elements for all of year, month, day, hour, and minute).
+Another useful attribute of this tag (not used here) is noSelection. [18]
+
+<div class="fieldcontain ${hasErrors(bean: tekEventInstance, field:
+   'volunteers', 'error')} ">
+   <label for="volunteers">
+      <g:message code="tekEvent.volunteers.label" default="Volunteers" />
+   </label>
+   <g:select name="volunteers" from="${com.tekdays.TekUser.list()}"
+      multiple="multiple" optionKey="id" size="5"
+      value="${tekEventInstance?.volunteers*.id}" class="many-to-many"/>
+   </div>
+
+Grails also uses a <g:select> tag for unidirectional one-to-many relationships.
+In this case, the multiple attribute is set, and the value attribute is set to the id
+of each TekUser instance in the volunteers collection property, using Groovy’s
+spread operator. 19 This will render a multiselect listbox loaded with TekUser
+instances. When submitted, all the selected instances will be automagically
+added to the volunteers property.
+
+<div class="fieldcontain ${hasErrors(bean: tekEventInstance, field: 'sponsorships',
+   'error')} ">
+   <label for="sponsorships">
+      <g:message code="tekEvent.sponsorships.label" default="Sponsorships" />
+   </label>
+<ul class="one-to-many">
+   <g:each in="${tekEventInstance?.sponsorships?}" var="s">
+   <li><g:link controller="sponsorship" action="show"
+      id="${s.id}">${s?.encodeAsHTML()}</g:link></li>
+   </g:each>
+   <li class="add">
+   <g:link controller="sponsorship" action="create" params="['tekEvent.id':
+      tekEventInstance?.id]">${message(code: 'default.add.label',
+      args: [message(code: 'sponsorship.label', default: 'Sponsorship')])}</g:link>
+   </li>
+</ul>
+</div>
+
+In this block, we can see how the sponsorship collection property is rendered as
+an unordered list of links. A <g:each> tag creates a <li> for each sponsorship,
+and after it is closed, we have one last <li> , containing a <g:link> tag that will
+render a link to the create action of the SponsorshipController . The value in the
+params attribute will cause this TekEvent instance to be assigned to the tekEvent
+property of the newly-created Sponsorship .
+And this concludes our tour of the code behind the scaffolded views. Now
+that this code is available to us and we have a working understanding of what
+it is doing, we can see how we could make a few changes to make our appli-
+cation a little better looking and easier to use. We’ll do that beginning in the
+next chapter, but first, let’s see how we can hook up to a real database so we
+no longer lose our data changes every time we restart the application.
+
+
+Configuring a Database
+
+[See page 79 of "Grails2: A Quick-Start Guide" for steps to configure a non-memory database.]
+
+
+[18] See http://grails.org/doc/2.3.1/ref/Tags/datePicker.html .
+[19] See http://mrhaki.blogspot.com/2009/08/groovy-goodness-spread-dot-operator.html .
+
+Chapter 6
+
+Change look-and-feel across whole app:
+vi grails-app/views/layouts/main.gsp
+
+Edit the above to change things like the logo image in the header included in all pages.
+Change the <a href= ... > to point to the main index page for the app.
+Use main.gsp to add sidebars, a foorter, a standard menu. etc.
+
+Grails puts the CSS code for the scaffolded views in web-app/css/main.css.
+
+The List View
+We’ll start by removing the organizer from the list view. When we generated
+the scaffolded views, Grails simply used the first six properties of our TekEvent
+for the table in the list view. Edit the view in grails-app/views/tekEvent/index.gsp to add remove fields as desired.
+
+The Show View
+
+Edit the show view in grails-app/views/tekEvent/show.gsp as needed. For instance, change the default behavior/content of any date fields 
+or to change how one-to-many fields are dislayed or how fields that do not have a toString() method are displayed.
+
+<span class="property-value" aria-labelledby="startDate-label">
+   <g:formatDate format="MMMM dd, yyyy"
+      date="${tekEventInstance?.startDate}" /></span>
+
+Add the 'format' [1] attribute to the <g:formatDate> tag to change the date output format.
+
+[1]  See http://docs.oracle.com/javase/6/docs/api/java/text/SimpleDateFormat.html .
+
+
+
+The Create and Edit Views
+
+The create and edit views share the form elements contained in the _form.gsp template.  
+
+Note: The <g:datePicker> tag can take a years attribute, which will allow us to limit the
+years from which a user can pick. (Without this attribute, the tag will just
+list every year for 100 years before and after the current year.) This attribute
+can take either a Range [2] or a List.
+
+[2]  See http://groovy.codehaus.org/Collections .
+
+
+
+Grails Service Classes
+
+We’re going to write a method that will create several Task instances and add
+them to the tasks property of a newly created TekEvent . We will define this method
+in a service class. A Grails service class is a Plain Old Groovy Object (POGO)
+located in the grails-app/services directory and with a name ending in Service. By
+following these conventions, this plain old Groovy object will be endowed with
+magical powers.
+
+Service classes [4] are a great way to keep extra code out of our controllers. When
+we have application logic that doesn’t fit well in any domain class—for
+example, logic that involves multiple domain classes—it is tempting to add
+this code to the controller. Doing this can lead to bloated controllers that are
+difficult to read and maintain. To keep our controller leaner, we can move
+this type of application logic into service methods.
+
+[4]  You can find more details on Grails service classes at http://grails.org/doc/2.3.1/guide/ser-
+vices.html.
+
+Script to create Grails service classes: 
+
+grails create-service com.tekdays.Task
+
+package com.tekdays
+
+import grails.transaction.Transactional
+class TaskService {
+   def serviceMethod() {
+   }
+}
+
+We start with a stubbed-out method called serviceMethod() , which by default
+will be executed in a transaction. [5] This is because, by default, any method
+declared in a service class in Grails will be executed within a transaction. [6]
+We don’t have to do anything to enable transactions; everything is handled
+behind the scenes by Spring and Hibernate.
+
+Add new service methods as needed.
+
+[5]  See http://en.wikipedia.org/wiki/Database_transaction.
+[6] If you’re creating a read-only service, or one that doesn’t use the database at all, you
+can disable this by setting the transactional property to false . See http://grails.org/doc/2.3.1/guide/
+services.html#declarativeTransactions.
+
+To use a service class from within a controller class just declare a property at the top of the class named after the service class 
+(with the first letter lowercase), and an instance of that class will be injected into the controller at runtime. That's
+autowiring Grails style. e.g.
+
+class TekEventController {
+➤
+   def taskService
+
+Then reference the property in controller actions. e.g.
+
+def save(TekEvent tekEventInstance) {
+<snip>
+
+   taskService.addDefaultTasks(tekEventInstance)
+<snip>
+}
+
+
+Integration Testing
+
+We create an integration test by running the Grails script create-integration-test .
+An integration test is a Spock specification or JUnit test case, just like a Grails
+unit test. The difference is in what is available to the test at runtime. Unit
+tests are meant to test a unit (class) in isolation, so Grails doesn’t give unit
+tests any of its dynamic goodness. Integration tests are meant to test multiple
+classes working together. When running integration tests, Grails adds all of
+the dynamic behavior that we’re taking advantage of in our application.
+Since the process of adding default tasks to an event involves the TaskService ,
+Task , and TekEvent classes, an integration test is a good fit. Run the create-integra-
+tion-test script:
+$ grails create-integration-test com.tekdays.TaskService
+
+
+Integration class files are found under test/integration/...
+
+Note: Integration tests will use the data source for the test environment. Before running
+integration tests, you may want to set the data source for this environment to a per-
+sistent database.
+
+The last section of the chapter shows an example of how to handle the content/display of boolean fields.
+
+
+Chapter 7 Forum Messages and UI Tricks
+
+ 
