@@ -1,0 +1,72 @@
+# Simple logstash pipeline to copy stdin input to stdout and add timestamp info
+bin/logstash -e 'input { stdin { } } output { stdout {} }'
+
+Setting Up an Advanced Logstash Pipeline
+
+A Logstash pipeline in most use cases has one or more input, filter, and output plugins. The scenarios in this section build Logstash configuration files to specify these plugins and discuss what each plugin is doing.
+
+The Logstash configuration file defines your Logstash pipeline. When you start a Logstash instance, use the -f <path/to/file> option to specify the configuration file that defines that instance’s pipeline.
+
+A Logstash pipeline has two required elements, input and output, and one optional element, filter. The input plugins consume data from a source, the filter plugins modify the data as you specify, and the output plugins write the data to a destination.
+
+The following text represents the skeleton of a configuration pipeline:
+
+# The # character at the beginning of a line indicates a comment. Use
+# comments to describe your configuration.
+input {
+}
+# The filter part of this file is commented out to indicate that it is
+# optional.
+# filter {
+#
+# }
+output {
+}
+
+# Sample config file for tutorial:
+# The # character at the beginning of a line indicates a comment. Use
+# comments to describe your configuration.
+input {
+    file {
+        path => "/home/rob/Downloads/logstash-2.3.4/logstash-tutorial.log"
+        start_position => beginning 
+        ignore_older => 0 
+    }
+}
+# The filter part of this file is commented out to indicate that it is
+# optional.
+filter {
+    grok {
+        match => { "message" => "%{COMBINEDAPACHELOG}"}
+    }
+    geoip {
+        source => "clientip"
+    }
+}
+
+output {
+    elasticsearch { 
+        hosts => "localhost:9200"
+    }
+    stdout {}
+}
+
+To verify your configuration, run the following command:
+bin/logstash -f first-pipeline.conf --configtest
+
+The --configtest option parses your configuration file and reports any errors. When the configuration file passes the configuration test, start Logstash with the following command:
+
+bin/logstash -f first-pipeline.conf
+
+Try a test query to Elasticsearch based on the fields created by the grok filter plugin:
+
+DATE=2016.08.31
+curl -XGET "localhost:9200/logstash-$DATE/_search?q=response=200"
+
+curl -XGET "localhost:9200/logstash-$DATE/_search?q=geoip.city_name=Buffalo"
+
+# Sense queries:
+GET /logstash-2016.08.31/_search?q=response=200
+GET /logstash-2016.08.31/_search?q=geoip.city_name=Buffalo
+
+

@@ -1065,5 +1065,697 @@ Sequence objects may be compared to other objects with the same sequence type. T
 
 Note that comparing objects of different types is legal. The outcome is deterministic but arbitrary: the types are ordered by their name. Thus, a list is always smaller than a string, a string is always smaller than a tuple, etc. [1] Mixed numeric types are compared according to their numeric value, so 0 equals 0.0, etc.
 
+## Modules/Packages
 
+Python has a way to put definitions in a file and use them in a script or in an interactive instance of the interpreter. Such a file is called a module; definitions from a module can be imported into other modules or into the main module (the collection of variables that you have access to in a script executed at the top level and in calculator mode).
+
+A module is a file containing Python definitions and statements. The file name is the module name with the suffix .py appended. Within a module, the module’s name (as a string) is available as the value of the global variable __name__. For instance, use your favorite text editor to create a file called fibo.py in the current directory with the following contents:
+
+# Fibonacci numbers module
+
+def fib(n):    # write Fibonacci series up to n
+    a, b = 0, 1
+    while b < n:
+        print(b, end=' ')
+        a, b = b, a+b
+    print()
+
+def fib2(n): # return Fibonacci series up to n
+    result = []
+    a, b = 0, 1
+    while b < n:
+        result.append(b)
+        a, b = b, a+b
+    return result
+
+Now enter the Python interpreter and import this module with the following command:
+>>>
+
+>>> import fibo
+
+This does not enter the names of the functions defined in fibo directly in the current symbol table; it only enters the module name fibo there. Using the module name you can access the functions:
+>>>
+
+>>> fibo.fib(1000)
+1 1 2 3 5 8 13 21 34 55 89 144 233 377 610 987
+>>> fibo.fib2(100)
+[1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89]
+>>> fibo.__name__
+'fibo'
+
+If you intend to use a function often you can assign it to a local name:
+>>> fib = fibo.fib
+>>> fib(500)
+1 1 2 3 5 8 13 21 34 55 89 144 233 377
+
+### More on Modules
+
+A module can contain executable statements as well as function definitions. These statements are intended to initialize the module. They are executed only the first time the module name is encountered in an import statement. [1] (They are also run if the file is executed as a script.)
+
+Each module has its own private symbol table, which is used as the global symbol table by all functions defined in the module. Thus, the author of a module can use global variables in the module without worrying about accidental clashes with a user’s global variables. On the other hand, if you know what you are doing you can touch a module’s global variables with the same notation used to refer to its functions, modname.itemname.
+
+Modules can import other modules. It is customary but not required to place all import statements at the beginning of a module (or script, for that matter). The imported module names are placed in the importing module’s global symbol table.
+
+There is a variant of the import statement that imports names from a module directly into the importing module’s symbol table. For example:
+
+from fibo import fib, fib2
+>>> fib(500)
+
+from fibo import *
+>>> fib(500)
+
+This imports all names except those beginning with an underscore (_). In most cases Python programmers do not use this facility since it introduces an unknown set of names into the interpreter, possibly hiding some things you have already defined.
+
+Executing modules as scripts
+
+When you run a Python module with
+
+python fibo.py <arguments>
+
+the code in the module will be executed, just as if you imported it, but with the __name__ set to "__main__". That means that by adding this code at the end of your module:
+
+if __name__ == "__main__":
+    import sys
+    fib(int(sys.argv[1]))
+
+you can make the file usable as a script as well as an importable module, because the code that parses the command line only runs if the module is executed as the “main” file:
+
+$ python fibo.py 50
+
+This is often used either to provide a convenient user interface to a module, or for testing purposes (running the module as a script executes a test suite).
+
+Python comes with a library of standard modules, described in a separate document, the Python Library Reference (“Library Reference” hereafter). Some modules are built into the interpreter; these provide access to operations that are not part of the core of the language but are nevertheless built in, either for efficiency or to provide access to operating system primitives such as system calls. The set of such modules is a configuration option which also depends on the underlying platform. For example, the winreg module is only provided on Windows systems. One particular module deserves some attention: sys, which is built into every Python interpreter. The variables sys.ps1 and sys.ps2 define the strings used as primary and secondary prompts:
+
+The variable sys.path is a list of strings that determines the interpreter’s search path for modules. It is initialized to a default path taken from the environment variable PYTHONPATH, or from a built-in default if PYTHONPATH is not set. You can modify it using standard list operations:
+
+>>> import sys
+>>> sys.path.append('/ufs/guido/lib/python')
+
+
+The dir() Function
+
+The built-in function dir() is used to find out which names a module defines. It returns a sorted list of strings:
+>>>
+
+>>> import fibo, sys
+>>> dir(fibo)
+['__name__', 'fib', 'fib2']
+>>> dir(sys)  
+['__displayhook__', '__doc__', '__egginsert', '__excepthook__',
+ '__loader__', '__name__', '__package__', '__plen', '__stderr__',
+<snip>
+
+Without arguments, dir() lists the names you have defined currently:
+>>>
+
+>>> a = [1, 2, 3, 4, 5]
+>>> import fibo
+>>> fib = fibo.fib
+>>> dir()
+['__builtins__', '__name__', 'a', 'fib', 'fibo', 'sys']
+
+Note that it lists all types of names: variables, modules, functions, etc.
+
+dir() does not list the names of built-in functions and variables. If you want a list of those, they are defined in the standard module builtins:
+>>>
+
+>>> import builtins
+>>> dir(builtins)  
+['ArithmeticError', 'AssertionError', 'AttributeError', 'BaseException',
+ 'BlockingIOError', 'BrokenPipeError', 'BufferError', 'BytesWarning',
+ <snip>
+ 
+ Packages
+
+### Packages are a way of structuring Python’s module namespace by using “dotted module names”. For example, the module name A.B designates a submodule named B in a package named A. Just like the use of modules saves the authors of different modules from having to worry about each other’s global variable names, the use of dotted module names saves the authors of multi-module packages like NumPy or the Python Imaging Library from having to worry about each other’s module names.
+
+sound/                          Top-level package
+      __init__.py               Initialize the sound package
+      formats/                  Subpackage for file format conversions
+              __init__.py
+              wavread.py
+              wavwrite.py
+              aiffread.py
+              aiffwrite.py
+              auread.py
+              auwrite.py
+              ...
+      effects/                  Subpackage for sound effects
+              __init__.py
+              echo.py
+              surround.py
+              reverse.py
+              ...
+      filters/                  Subpackage for filters
+              __init__.py
+              equalizer.py
+              vocoder.py
+              karaoke.py
+              ...
+
+When importing the package, Python searches through the directories on sys.path looking for the package subdirectory.
+
+The __init__.py files are required to make Python treat the directories as containing packages; this is done to prevent directories with a common name, such as string, from unintentionally hiding valid modules that occur later on the module search path. In the simplest case, __init__.py can just be an empty file, but it can also execute initialization code for the package or set the __all__ variable, described later.
+
+Users of the package can import individual modules from the package, for example:
+
+import sound.effects.echo
+
+This loads the submodule sound.effects.echo. It must be referenced with its full name.
+
+sound.effects.echo.echofilter(input, output, delay=0.7, atten=4)
+
+An alternative way of importing the submodule is:
+
+from sound.effects import echo
+
+This also loads the submodule echo, and makes it available without its package prefix, so it can be used as follows:
+
+echo.echofilter(input, output, delay=0.7, atten=4)
+
+Yet another variation is to import the desired function or variable directly:
+
+from sound.effects.echo import echofilter
+
+Again, this loads the submodule echo, but this makes its function echofilter() directly available:
+
+echofilter(input, output, delay=0.7, atten=4)
+
+Note that when using from package import item, the item can be either a submodule (or subpackage) of the package, or some other name defined in the package, like a function, class or variable. The import statement first tests whether the item is defined in the package; if not, it assumes it is a module and attempts to load it. If it fails to find it, an ImportError exception is raised.
+
+Contrarily, when using syntax like import item.subitem.subsubitem, each item except for the last must be a package; the last item can be a module or a package but can’t be a class or function or variable defined in the previous item.
+6.4.1. Importing * From a Package
+
+Now what happens when the user writes from sound.effects import *? Ideally, one would hope that this somehow goes out to the filesystem, finds which submodules are present in the package, and imports them all. This could take a long time and importing sub-modules might have unwanted side-effects that should only happen when the sub-module is explicitly imported.
+
+The only solution is for the package author to provide an explicit index of the package. The import statement uses the following convention: if a package’s __init__.py code defines a list named __all__, it is taken to be the list of module names that should be imported when from package import * is encountered. It is up to the package author to keep this list up-to-date when a new version of the package is released. Package authors may also decide not to support it, if they don’t see a use for importing * from their package. For example, the file sound/effects/__init__.py could contain the following code:
+
+__all__ = ["echo", "surround", "reverse"]
+
+This would mean that from sound.effects import * would import the three named submodules of the sound package.
+
+If __all__ is not defined, the statement from sound.effects import * does not import all submodules from the package sound.effects into the current namespace; it only ensures that the package sound.effects has been imported (possibly running any initialization code in __init__.py) and then imports whatever names are defined in the package. This includes any names defined (and submodules explicitly loaded) by __init__.py. It also includes any submodules of the package that were explicitly loaded by previous import statements. Consider this code:
+
+import sound.effects.echo
+import sound.effects.surround
+from sound.effects import *
+
+In this example, the echo and surround modules are imported in the current namespace because they are defined in the sound.effects package when the from...import statement is executed. (This also works when __all__ is defined.)
+
+
+
+## Input and Output
+
+Often you’ll want more control over the formatting of your output than simply printing space-separated values. There are two ways to format your output; the first way is to do all the string handling yourself; using string slicing and concatenation operations you can create any layout you can imagine. The string type has some methods that perform useful operations for padding strings to a given column width; these will be discussed shortly. The second way is to use the str.format() method.
+
+The string module contains a Template class which offers yet another way to substitute values into strings.
+
+One question remains, of course: how do you convert values to strings? Luckily, Python has ways to convert any value to a string: pass it to the repr() or str() functions.
+
+The str() function is meant to return representations of values which are fairly human-readable, while repr() is meant to generate representations which can be read by the interpreter (or will force a SyntaxError if there is no equivalent syntax). For objects which don’t have a particular representation for human consumption, str() will return the same value as repr(). Many values, such as numbers or structures like lists and dictionaries, have the same representation using either function. Strings, in particular, have two distinct representations.
+
+Here are two ways to write a table of squares and cubes:
+>>>
+
+>>> for x in range(1, 11):
+...     print(repr(x).rjust(2), repr(x*x).rjust(3), end=' ')
+...     # Note use of 'end' on previous line
+...     print(repr(x*x*x).rjust(4))
+...
+ 1   1    1
+ 2   4    8
+<snip>
+10 100 1000
+
+>>> for x in range(1, 11):
+...     print('{0:2d} {1:3d} {2:4d}'.format(x, x*x, x*x*x))
+
+ 1   1    1
+<snip>
+ 9  81  729
+10 100 1000
+
+(Note that in the first example, one space between each column was added by the way print() works: it always adds spaces between its arguments.)
+
+str.zfill()  pads a numeric string on the left with zeros. It understands about plus and minus signs:
+
+>>> '12'.zfill(5)
+'00012'
+>>> '-3.14'.zfill(7)
+'-003.14'
+>>> '3.14159265359'.zfill(5)
+'3.14159265359'
+
+Basic usage of the str.format() method looks like this:
+>>>
+
+>>> print('We are the {} who say "{}!"'.format('knights', 'Ni'))
+We are the knights who say "Ni!"
+
+The brackets and characters within them (called format fields) are replaced with the objects passed into the str.format() method. A number in the brackets can be used to refer to the position of the object passed into the str.format() method.
+>>>
+
+>>> print('{0} and {1}'.format('spam', 'eggs'))
+spam and eggs
+
+Positional and keyword arguments can be arbitrarily combined:
+>>>
+
+>>> print('The story of {0}, {1}, and {other}.'.format('Bill', 'Manfred',
+                                                       other='Georg'))
+The story of Bill, Manfred, and Georg.
+
+'!a' (apply ascii()), '!s' (apply str()) and '!r' (apply repr()) can be used to convert the value before it is formatted:
+>>>
+
+>>> import math
+>>> print('The value of PI is approximately {}.'.format(math.pi))
+The value of PI is approximately 3.14159265359.
+>>> print('The value of PI is approximately {!r}.'.format(math.pi))
+The value of PI is approximately 3.141592653589793.
+
+An optional ':' and format specifier can follow the field name. This allows greater control over how the value is formatted. The following example rounds Pi to three places after the decimal.
+>>>
+
+>>> import math
+>>> print('The value of PI is approximately {0:.3f}.'.format(math.pi))
+The value of PI is approximately 3.142.
+
+Passing an integer after the ':' will cause that field to be a minimum number of characters wide. This is useful for making tables pretty.
+>>>
+
+>>> table = {'Sjoerd': 4127, 'Jack': 4098, 'Dcab': 7678}
+>>> for name, phone in table.items():
+...     print('{0:10} ==> {1:10d}'.format(name, phone))
+...
+Jack       ==>       4098
+Dcab       ==>       7678
+Sjoerd     ==>       4127
+
+For a complete overview of string formatting with str.format(), see https://docs.python.org/3.3/library/string.html#formatstrings
+
+
+
+## Reading and Writing Files
+
+open() returns a file object, and is most commonly used with two arguments: open(filename, mode).
+
+>>> f = open('workfile', 'w')
+
+The first argument is a string containing the filename. The second argument is another string containing a few characters describing the way in which the file will be used. mode can be 'r' when the file will only be read, 'w' for only writing (an existing file with the same name will be erased), and 'a' opens the file for appending; any data written to the file is automatically added to the end. 'r+' opens the file for both reading and writing. The mode argument is optional; 'r' will be assumed if it’s omitted.
+
+Normally, files are opened in text mode, that means, you read and write strings from and to the file, which are encoded in a specific encoding (the default being UTF-8). 'b' appended to the mode opens the file in binary mode: now the data is read and written in the form of bytes objects. This mode should be used for all files that don’t contain text.
+
+Methods of File Objects
+
+The rest of the examples in this section will assume that a file object called f has already been created.
+
+To read a file’s contents, call f.read(size), which reads some quantity of data and returns it as a string or bytes object. size is an optional numeric argument. When size is omitted or negative, the entire contents of the file will be read and returned; it’s your problem if the file is twice as large as your machine’s memory. Otherwise, at most size bytes are read and returned. If the end of the file has been reached, f.read() will return an empty string ('').
+>>>
+
+>>> f.read()
+'This is the entire file.\n'
+>>> f.read()
+''
+
+f.readline() reads a single line from the file; a newline character (\n) is left at the end of the string, and is only omitted on the last line of the file if the file doesn’t end in a newline. This makes the return value unambiguous; if f.readline() returns an empty string, the end of the file has been reached, while a blank line is represented by '\n', a string containing only a single newline.
+
+>>> f.readline()
+'This is the first line of the file.\n'
+>>> f.readline()
+'Second line of the file\n'
+>>> f.readline()
+''
+
+For reading lines from a file, you can loop over the file object. This is memory efficient, fast, and leads to simple code:
+>>>
+
+>>> for line in f:
+...     print(line, end='')
+...
+This is the first line of the file.
+Second line of the file
+
+If you want to read all the lines of a file in a list you can also use list(f) or f.readlines().
+
+f.write(string) writes the contents of string to the file, returning the number of characters written.
+>>>
+
+>>> f.write('This is a test\n')
+15
+
+To write something other than a string, it needs to be converted to a string first:
+
+>>> value = ('the answer', 42)
+>>> s = str(value)
+>>> f.write(s)
+18
+
+hen you’re done with a file, call f.close() to close it and free up any system resources taken up by the open file. After calling f.close(), attempts to use the file object will automatically fail.
+>>>
+
+>>> f.close()
+>>> f.read()
+Traceback (most recent call last):
+  File "<stdin>", line 1, in ?
+ValueError: I/O operation on closed file
+
+It is good practice to use the with keyword when dealing with file objects. This has the advantage that the file is properly closed after its suite finishes, even if an exception is raised on the way. It is also much shorter than writing equivalent try-finally blocks:
+
+>>> with open('workfile', 'r') as f:
+...     read_data = f.read()
+>>> f.closed
+True
+
+
+## Saving structured data with json
+
+Strings can easily be written to and read from a file. Numbers take a bit more effort, since the read() method only returns strings, which will have to be passed to a function like int(), which takes a string like '123' and returns its numeric value 123. When you want to save more complex data types like nested lists and dictionaries, parsing and serializing by hand becomes complicated.
+
+Rather than having users constantly writing and debugging code to save complicated data types to files, Python allows you to use the popular data interchange format called JSON (JavaScript Object Notation). The standard module called json can take Python data hierarchies, and convert them to string representations; this process is called serializing. Reconstructing the data from the string representation is called deserializing. Between serializing and deserializing, the string representing the object may have been stored in a file or data, or sent over a network connection to some distant machine.
+
+Note
+
+The JSON format is commonly used by modern applications to allow for data exchange. Many programmers are already familiar with it, which makes it a good choice for interoperability.
+
+If you have an object x, you can view its JSON string representation with a simple line of code:
+>>>
+
+>>> json.dumps([1, 'simple', 'list'])
+'[1, "simple", "list"]'
+
+Another variant of the dumps() function, called dump(), simply serializes the object to a text file. So if f is a text file object opened for writing, we can do this:
+
+json.dump(x, f)
+
+To decode the object again, if f is a text file object which has been opened for reading:
+
+x = json.load(f)
+
+## Errors and Exceptions
+
+There are (at least) two distinguishable kinds of errors: syntax errors and exceptions.
+Syntax errors, also known as parsing errors, are perhaps the most common kind of complaint you get while you are still learning Python.
+Errors detected during execution are called exceptions and are not unconditionally fatal.
+
+Handling Exceptions
+
+It is possible to write programs that handle selected exceptions. Look at the following example, which asks the user for input until a valid integer has been entered, but allows the user to interrupt the program (using Control-C or whatever the operating system supports); note that a user-generated interruption is signalled by raising the KeyboardInterrupt exception.
+>>>
+
+>>> while True:
+...     try:
+...         x = int(input("Please enter a number: "))
+...         break
+...     except ValueError:
+...         print("Oops!  That was no valid number.  Try again...")
+...
+
+The try statement works as follows.
+
+    First, the try clause (the statement(s) between the try and except keywords) is executed.
+    If no exception occurs, the except clause is skipped and execution of the try statement is finished.
+    If an exception occurs during execution of the try clause, the rest of the clause is skipped. Then if its type matches the exception named after the except keyword, the except clause is executed, and then execution continues after the try statement.
+    If an exception occurs which does not match the exception named in the except clause, it is passed on to outer try statements; if no handler is found, it is an unhandled exception and execution stops with a message as shown above.
+
+A try statement may have more than one except clause, to specify handlers for different exceptions. At most one handler will be executed. Handlers only handle exceptions that occur in the corresponding try clause, not in other handlers of the same try statement. An except clause may name multiple exceptions as a parenthesized tuple, for example:
+
+A try statement may have more than one except clause, to specify handlers for different exceptions. At most one handler will be executed. Handlers only handle exceptions that occur in the corresponding try clause, not in other handlers of the same try statement. An except clause may name multiple exceptions as a parenthesized tuple, for example:
+
+... except (RuntimeError, TypeError, NameError):
+...     pass
+
+The last except clause may omit the exception name(s), to serve as a wildcard. Use this with extreme caution, since it is easy to mask a real programming error in this way! It can also be used to print an error message and then re-raise the exception (allowing a caller to handle the exception as well):
+
+import sys
+
+try:
+    f = open('myfile.txt')
+    s = f.readline()
+    i = int(s.strip())
+except IOError as err:
+    print("I/O error: {0}".format(err))
+except ValueError:
+    print("Could not convert data to an integer.")
+except:
+    print("Unexpected error:", sys.exc_info()[0])
+    raise
+
+The try ... except statement has an optional else clause, which, when present, must follow all except clauses. It is useful for code that must be executed if the try clause does not raise an exception. For example:
+
+for arg in sys.argv[1:]:
+    try:
+        f = open(arg, 'r')
+    except IOError:
+        print('cannot open', arg)
+    else:
+        print(arg, 'has', len(f.readlines()), 'lines')
+        f.close()
+
+The use of the else clause is better than adding additional code to the try clause because it avoids accidentally catching an exception that wasn’t raised by the code being protected by the try ... except statement.
+
+When an exception occurs, it may have an associated value, also known as the exception’s argument. The presence and type of the argument depend on the exception type.
+
+The except clause may specify a variable after the exception name. The variable is bound to an exception instance with the arguments stored in instance.args. For convenience, the exception instance defines __str__() so the arguments can be printed directly without having to reference .args. One may also instantiate an exception first before raising it and add any attributes to it as desired.
+>>>
+
+>>> try:
+...    raise Exception('spam', 'eggs')
+... except Exception as inst:
+...    print(type(inst))    # the exception instance
+...    print(inst.args)     # arguments stored in .args
+...    print(inst)          # __str__ allows args to be printed directly,
+...                         # but may be overridden in exception subclasses
+...    x, y = inst.args     # unpack args
+...    print('x =', x)
+...    print('y =', y)
+...
+<class 'Exception'>
+('spam', 'eggs')
+('spam', 'eggs')
+x = spam
+y = eggs
+
+If an exception has arguments, they are printed as the last part (‘detail’) of the message for unhandled exceptions.
+
+Exception handlers don’t just handle exceptions if they occur immediately in the try clause, but also if they occur inside functions that are called (even indirectly) in the try clause. For example:
+>>>
+
+>>> def this_fails():
+...     x = 1/0
+...
+>>> try:
+...     this_fails()
+... except ZeroDivisionError as err:
+...     print('Handling run-time error:', err)
+...
+Handling run-time error: int division or modulo by zero
+
+
+Raising Exceptions
+
+The raise statement allows the programmer to force a specified exception to occur. For example:
+>>>
+
+>>> raise NameError('HiThere')
+Traceback (most recent call last):
+  File "<stdin>", line 1, in ?
+NameError: HiThere
+
+The sole argument to raise indicates the exception to be raised. This must be either an exception instance or an exception class (a class that derives from Exception).
+
+If you need to determine whether an exception was raised but don’t intend to handle it, a simpler form of the raise statement allows you to re-raise the exception:
+>>>
+
+>>> try:
+...     raise NameError('HiThere')
+... except NameError:
+...     print('An exception flew by!')
+...     raise
+...
+An exception flew by!
+Traceback (most recent call last):
+  File "<stdin>", line 2, in ?
+NameError: HiThere
+
+8.5. User-defined Exceptions
+
+Programs may name their own exceptions by creating a new exception class (see Classes for more about Python classes). Exceptions should typically be derived from the Exception class, either directly or indirectly. For example:
+>>>
+
+>>> class MyError(Exception):
+...     def __init__(self, value):
+...         self.value = value
+...     def __str__(self):
+...         return repr(self.value)
+...
+>>> try:
+...     raise MyError(2*2)
+... except MyError as e:
+...     print('My exception occurred, value:', e.value)
+...
+My exception occurred, value: 4
+>>> raise MyError('oops!')
+Traceback (most recent call last):
+  File "<stdin>", line 1, in ?
+__main__.MyError: 'oops!'
+
+In this example, the default __init__() of Exception has been overridden. The new behavior simply creates the value attribute. This replaces the default behavior of creating the args attribute.
+
+efining Clean-up Actions
+
+The try statement has another optional clause which is intended to define clean-up actions that must be executed under all circumstances. For example:
+>>>
+
+>>> try:
+...     raise KeyboardInterrupt
+... finally:
+...     print('Goodbye, world!')
+...
+Goodbye, world!
+KeyboardInterrupt
+
+A finally clause is always executed before leaving the try statement, whether an exception has occurred or not. When an exception has occurred in the try clause and has not been handled by an except clause (or it has occurred in a except or else clause), it is re-raised after the finally clause has been executed. The finally clause is also executed “on the way out” when any other clause of the try statement is left via a break, continue or return statement. A more complicated example:
+
+
+Operating System Interface
+
+The os module provides dozens of functions for interacting with the operating system:
+>>>
+
+>>> import os
+>>> os.getcwd()      # Return the current working directory
+'C:\\Python26'
+>>> os.chdir('/server/accesslogs')   # Change current working directory
+>>> os.system('mkdir today')   # Run the command mkdir in the system shell
+0
+
+Be sure to use the import os style instead of from os import *. This will keep os.open() from shadowing the built-in open() function which operates much differently.
+
+The built-in dir() and help() functions are useful as interactive aids for working with large modules like os:
+>>>
+
+>>> import os
+>>> dir(os)
+<returns a list of all module functions>
+>>> help(os)
+<returns an extensive manual page created from the module's docstrings>
+
+For daily file and directory management tasks, the shutil module provides a higher level interface that is easier to use:
+>>>
+
+>>> import shutil
+>>> shutil.copyfile('data.db', 'archive.db')
+>>> shutil.move('/build/executables', 'installdir')
+
+10.2. File Wildcards
+
+The glob module provides a function for making file lists from directory wildcard searches:
+>>>
+
+>>> import glob
+>>> glob.glob('*.py')
+['primes.py', 'random.py', 'quote.py']
+
+10.3. Command Line Arguments
+
+Common utility scripts often need to process command line arguments. These arguments are stored in the sys module’s argv attribute as a list. For instance the following output results from running python demo.py one two three at the command line:
+>>>
+
+>>> import sys
+>>> print sys.argv
+['demo.py', 'one', 'two', 'three']
+
+The getopt module processes sys.argv using the conventions of the Unix getopt() function. More powerful and flexible command line processing is provided by the argparse module.
+10.4. Error Output Redirection and Program Termination
+
+The sys module also has attributes for stdin, stdout, and stderr. The latter is useful for emitting warnings and error messages to make them visible even when stdout has been redirected:
+>>>
+
+>>> sys.stderr.write('Warning, log file not found starting a new one\n')
+Warning, log file not found starting a new one
+
+The most direct way to terminate a script is to use sys.exit().
+10.5. String Pattern Matching
+
+The re module provides regular expression tools for advanced string processing. For complex matching and manipulation, regular expressions offer succinct, optimized solutions:
+>>>
+
+>>> import re
+>>> re.findall(r'\bf[a-z]*', 'which foot or hand fell fastest')
+['foot', 'fell', 'fastest']
+>>> re.sub(r'(\b[a-z]+) \1', r'\1', 'cat in the the hat')
+'cat in the hat'
+
+When only simple capabilities are needed, string methods are preferred because they are easier to read and debug:
+>>>
+
+>>> 'tea for too'.replace('too', 'two')
+'tea for two'
+
+10.6. Mathematics
+
+The math module gives access to the underlying C library functions for floating point math:
+>>>
+
+>>> import math
+>>> math.cos(math.pi / 4.0)
+0.70710678118654757
+>>> math.log(1024, 2)
+10.0
+
+The random module provides tools for making random selections:
+>>>
+
+>>> import random
+>>> random.choice(['apple', 'pear', 'banana'])
+'apple'
+>>> random.sample(xrange(100), 10)   # sampling without replacement
+[30, 83, 16, 4, 8, 81, 41, 50, 18, 33]
+>>> random.random()    # random float
+0.17970987693706186
+>>> random.randrange(6)    # random integer chosen from range(6)
+4
+
+10.7. Internet Access
+
+There are a number of modules for accessing the internet and processing internet protocols. Two of the simplest are urllib2 for retrieving data from URLs and smtplib for sending mail:
+>>>
+
+>>> import urllib2
+>>> for line in urllib2.urlopen('http://tycho.usno.navy.mil/cgi-bin/timer.pl'):
+...     if 'EST' in line or 'EDT' in line:  # look for Eastern Time
+...         print line
+
+<BR>Nov. 25, 09:43:32 PM EST
+
+>>> import smtplib
+>>> server = smtplib.SMTP('localhost')
+>>> server.sendmail('soothsayer@example.org', 'jcaesar@example.org',
+... """To: jcaesar@example.org
+... From: soothsayer@example.org
+...
+... Beware the Ides of March.
+... """)
+>>> server.quit()
+
+(Note that the second example needs a mailserver running on localhost.)
+10.8. Dates and Times
+
+The datetime module supplies classes for manipulating dates and times in both simple and complex ways. While date and time arithmetic is supported, the focus of the implementation is on efficient member extraction for output formatting and manipulation. The module also supports objects that are timezone aware.
+>>>
+
+>>> # dates are easily constructed and formatted
+>>> from datetime import date
+>>> now = date.today()
+>>> now
+datetime.date(2003, 12, 2)
+>>> now.strftime("%m-%d-%y. %d %b %Y is a %A on the %d day of %B.")
+'12-02-03. 02 Dec 2003 is a Tuesday on the 02 day of December.'
+
+>>> # dates support calendar arithmetic
+>>> birthday = date(1964, 7, 31)
+>>> age = now - birthday
+>>> age.days
+14368
 

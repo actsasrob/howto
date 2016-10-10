@@ -1,0 +1,603 @@
+
+# Elasticsearch howto
+
+ A node is a running instance of Elasticsearch. A cluster is a group of nodes with the same cluster.name that are working together to share data and to provide failover and scale. (A single node, however, can form a cluster all by itself.) You can change the cluster.name in the elasticsearch.yml configuration file that’s loaded when you start a node.
+ 
+ 1) Download/install Elasticsearch
+ 
+ Once you’ve extracted the archive file, Elasticsearch is ready to run. To start it up in the foreground:
+
+cd elasticsearch-<version>
+./bin/elasticsearch  
+
+Add -d if you want to run it in the background as a daemon. 
+
+Test it out by opening another terminal window and running the following:
+
+curl 'http://localhost:9200/?pretty'
+
+
+## Sense 
+ Sense is a Kibana app that provides an interactive console for submitting requests to Elasticsearch directly from your browser.
+ un the following command in the Kibana directory to download and install the Sense app:
+
+1) Download/install kibana
+
+# Untar kibana then:
+
+./bin/kibana plugin --install elastic/sense
+
+ 2) Start Kibana.
+
+./bin/kibana
+
+ 3) Open Sense your web browser by going to http://localhost:5601/app/sense. 
+ 
+# index a doc
+PUT index/type/1
+{
+  "body": "here"
+}
+
+# and get it ...
+GET index/type/1
+
+GET _search
+{
+  "query": {
+    "match_all": {}
+  }
+}
+
+ # Talking to Elasticsearch
+
+How you talk to Elasticsearch depends on whether you are using Java.
+Java API
+
+If you are using Java, Elasticsearch comes with two built-in clients that you can use in your code:
+
+Node client
+    The node client joins a local cluster as a non data node. In other words, it doesn’t hold any data itself, but it knows what data lives on which node in the cluster, and can forward requests directly to the correct node. 
+Transport client
+    The lighter-weight transport client can be used to send requests to a remote cluster. It doesn’t join the cluster itself, but simply forwards requests to a node in the cluster. 
+
+Both Java clients talk to the cl1uster over port 9300, using the native Elasticsearch transport protocol. The nodes in the cluster also communicate with each other over port 9300. If this port is not open, your nodes will not be able to form a cluster.
+
+RESTful API with JSON over HTTP
+edit
+
+All other languages can communicate with Elasticsearch over port 9200 using a RESTful API, accessible with your favorite web client. In fact, as you have seen, you can even talk to Elasticsearch from the command line by using the curl command.
+Note
+
+Elasticsearch provides official clients for several languages—Groovy, JavaScript, .NET, PHP, Perl, Python, and Ruby—and there are numerous community-provided clients and integrations, all of which can be found in Elasticsearch Clients.
+
+A request to Elasticsearch consists of the same parts as any HTTP request:
+
+curl -X<VERB> '<PROTOCOL>://<HOST>:<PORT>/<PATH>?<QUERY_STRING>' -d '<BODY>'
+
+The parts marked with < > above are:
+VERB The appropriate HTTP method or verb: GET, POST, PUT, HEAD, or DELETE.
+
+PROTOCOL Either http or https (if you have an https proxy in front of Elasticsearch.)
+
+HOST The hostname of any node in your Elasticsearch cluster, or localhost for a node on your local machine.
+
+PORT The port running the Elasticsearch HTTP service, which defaults to 9200.
+
+PATH API Endpoint (for example _count will return the number of documents in the cluster). Path may contain multiple components, such as _cluster/stats or _nodes/stats/jvm
+
+QUERY_STRING Any optional query-string parameters (for example ?pretty will pretty-print the JSON response to make it easier to read.)
+
+BODY A JSON-encoded request body (if the request needs one.)
+
+For instance, to count the number of documents in the cluster, we could use this:
+
+curl -XGET 'http://localhost:9200/_count?pretty' -d '
+{
+    "query": {
+        "match_all": {}
+    }
+}
+'
+
+Elasticsearch returns an HTTP status code like 200 OK and (except for HEAD requests) a JSON-encoded response body. The preceding curl request would respond with a JSON body like the following:
+
+{
+    "count" : 0,
+    "_shards" : {
+        "total" : 5,
+        "successful" : 5,
+        "failed" : 0
+    }
+}
+
+We don’t see the HTTP headers in the response because we didn’t ask curl to display them. To see the headers, use the curl command with the -i switch:
+
+curl -i -XGET 'localhost:9200/'
+
+For the rest of the book, we will show these curl examples using a shorthand format that leaves out all the bits that are the same in every request, like the hostname and port, and the curl command itself. Instead of showing a full request like
+
+curl -XGET 'localhost:9200/_count?pretty' -d '
+{
+    "query": {
+        "match_all": {}
+    }
+}'
+
+we will show it in this shorthand format:
+
+GET /_count
+{
+    "query": {
+        "match_all": {}
+    }
+}
+
+curl -XGET 'localhost:9200/_count' -d '
+{
+    "query": {
+        "match_all": {}
+    }
+}'
+
+# Index a JSON document:
+
+So for our employee directory, we are going to do the following:
+
+    Index a document per employee, which contains all the details of a single employee.
+    Each document will be of type employee.
+    That type will live in the megacorp index.
+    That index will reside within our Elasticsearch cluster. 
+
+In practice, this is easy (even though it looks like a lot of steps). We can perform all of those actions in a single command:
+
+PUT /megacorp/employee/1
+{
+    "first_name" : "John",
+    "last_name" :  "Smith",
+    "age" :        25,
+    "about" :      "I love to go rock climbing",
+    "interests": [ "sports", "music" ]
+}
+
+Notice that the path /megacorp/employee/1 contains three pieces of information:
+
+megacorp
+    The index name 
+employee
+    The type name 
+1
+    The ID of this particular employee 
+
+The request body—the JSON document—contains all the information about this employee. His name is John Smith, he’s 25, and enjoys rock climbing.
+
+Retrieving a Document
+edit
+
+Now that we have some data stored in Elasticsearch, we can get to work on the business requirements for this application. The first requirement is the ability to retrieve individual employee data.
+
+This is easy in Elasticsearch. We simply execute an HTTP GET request and specify the address of the document—the index, type, and ID. Using those three pieces of information, we can return the original JSON document:
+
+GET /megacorp/employee/1
+
+In the same way that we changed the HTTP verb from PUT to GET in order to retrieve the document, we could use the DELETE verb to delete the document, and the HEAD verb to check whether the document exists. To replace an existing document with an updated version, we just PUT it again.
+
+earch Lite
+edit
+
+A GET is fairly simple—you get back the document that you ask for. Let’s try something a little more advanced, like a simple search!
+
+The first search we will try is the simplest search possible. We will search for all employees, with this request:
+
+GET /megacorp/employee/_search
+
+You can see that we’re still using index megacorp and type employee, but instead of specifying a document ID, we now use the _search endpoint. The response includes all three of our documents in the hits array. By default, a search will return the top 10 results.
+
+Next, let’s try searching for employees who have “Smith” in their last name. To do this, we’ll use a lightweight search method that is easy to use from the command line. This method is often referred to as a query-string search, since we pass the search as a URL query-string parameter:
+
+GET /megacorp/employee/_search?q=last_name:Smith
+
+Search with Query DSL
+edit
+
+Query-string search is handy for ad hoc searches from the command line, but it has its limitations (see Search Lite). Elasticsearch provides a rich, flexible, query language called the query DSL, which allows us to build much more complicated, robust queries.
+
+The domain-specific language (DSL) is specified using a JSON request body. We can represent the previous search for all Smiths like so:
+
+GET /megacorp/employee/_search
+{
+    "query" : {
+        "match" : {
+            "last_name" : "Smith"
+        }
+    }
+}
+
+
+This will return the same results as the previous query. You can see that a number of things have changed. For one, we are no longer using query-string parameters, but instead a request body. This request body is built with JSON, and uses a match query (one of several types of queries, which we will learn about later).
+
+Phrase Search
+
+Finding individual words in a field is all well and good, but sometimes you want to match exact sequences of words or phrases. For instance, we could perform a query that will match only employee records that contain both “rock” and “climbing” and that display the words next to each other in the phrase “rock climbing.”
+
+To do this, we use a slight variation of the match query called the match_phrase query:
+
+GET /megacorp/employee/_search
+{
+    "query" : {
+        "match_phrase" : {
+            "about" : "rock climbing"
+        }
+    }
+}
+
+Analytics
+
+Finally, we come to our last business requirement: allow managers to run analytics over the employee directory. Elasticsearch has functionality called aggregations, which allow you to generate sophisticated analytics over your data. It is similar to GROUP BY in SQL, but much more powerful.
+
+For example, let’s find the most popular interests enjoyed by our employees:
+
+GET /megacorp/employee/_search
+{
+  "aggs": {
+    "all_interests": {
+      "terms": { "field": "interests" }
+    }
+  }
+}
+
+# Clusters/Nodes/Masters
+
+A node is a running instance of Elasticsearch, while a cluster consists of one or more nodes with the same cluster.name that are working together to share their data and workload. As nodes are added to or removed from the cluster, the cluster reorganizes itself to spread the data evenly.
+
+One node in the cluster is elected to be the master node, which is in charge of managing cluster-wide changes like creating or deleting an index, or adding or removing a node from the cluster. The master node does not need to be involved in document-level changes or searches, which means that having just one master node will not become a bottleneck as traffic grows. Any node can become the master. Our example cluster has only one node, so it performs the master role.
+
+As users, we can talk to any node in the cluster, including the master node. Every node knows where each document lives and can forward our request directly to the nodes that hold the data we are interested in. Whichever node we talk to manages the process of gathering the response from the node or nodes holding the data and returning the final response to the client. It is all managed transparently by Elasticsearch.
+
+index—a place to store related data. In reality, an index is just a logical namespace that points to one or more physical shards
+A shard is a low-level worker unit that holds just a slice of all the data in the index. A shard is a single instance of Lucene, and is a complete search engine in its own right. Our documents are stored and indexed in shards, but our applications don’t talk to them directly. Instead, they talk to an index.
+
+
+A shard can be either a primary shard or a replica shard. Each document in your index belongs to a single primary shard, so the number of primary shards that you have determines the maximum amount of data that your index can hold.
+
+A replica shard is just a copy of a primary shard. Replicas are used to provide redundant copies of your data to protect against hardware failure, and to serve read requests like searching or retrieving a document.
+
+The number of primary shards in an index is fixed at the time that an index is created, but the number of replica shards can be changed at any time.
+
+# Create an index name 'blogs' with 3 primary shards and 1 replica per shard
+PUT /blogs
+{
+   "settings" : {
+      "number_of_shards" : 3,
+      "number_of_replicas" : 1
+   }
+}
+
+Starting a Second Node
+
+To test what happens when you add a second node, you can start a new node in exactly the same way as you started the first one (see Installing and Running Elasticsearch), and from the same directory. Multiple nodes can share the same directory.
+
+When you run a second node on the same machine, it automatically discovers and joins the cluster as long as it has the same cluster.name as the first node. However, for nodes running on different machines to join the same cluster, you need to configure a list of unicast hosts the nodes can contact to join the cluster.
+
+The number of primary shards is fixed at the moment an index is created. Effectively, that number defines the maximum amount of data that can be stored in the index. (The actual number depends on your data, your hardware and your use case.) However, read requests—searches or document retrieval—can be handled by a primary or a replica shard, so the more copies of data that you have, the more search throughput you can handle.
+
+The number of replica shards can be changed dynamically on a live cluster, allowing us to scale up or down as demand requires. Let’s increase the number of replicas from the default of 1 to 2:
+
+PUT /blogs/_settings
+{
+   "number_of_replicas" : 2
+}
+
+autogenerating IDs
+
+If our data doesn’t have a natural ID, we can let Elasticsearch autogenerate one for us. The structure of the request changes: instead of using the PUT verb (“store this document at this URL”), we use the POST verb (“store this document under this URL”).
+
+The URL now contains just the _index and the _type:
+
+POST /website/blog/
+{
+  "title": "My second blog entry",
+  "text":  "Still trying this out...",
+  "date":  "2014/01/01"
+}
+
+The response is similar to what we saw before, except that the _id field has been generated for us:
+
+{
+   "_index":    "website",
+   "_type":     "blog",
+   "_id":       "AVFgSgVHUP18jI2wRx0w",
+   "_version":  1,
+   "created":   true
+}
+
+Autogenerated IDs are 20 character long, URL-safe, Base64-encoded GUID strings. These GUIDs are generated from a modified FlakeID scheme which allows multiple nodes to be generating unique IDs in parallel with essentially zero chance of collision.
+
+Retrieving a Document
+
+To get the document out of Elasticsearch, we use the same _index, _type, and _id, but the HTTP verb changes to GET:
+GET /website/blog/123?pretty
+
+
+Retrieving Part of a Document
+
+By default, a GET request will return the whole document, as stored in the _source field. But perhaps all you are interested in is the title field. Individual fields can be requested by using the _source parameter. Multiple fields can be specified in a comma-separated list:
+
+GET /website/blog/123?_source=title,text
+
+Or if you want just the _source field without any metadata, you can use the _source endpoint:
+GET /website/blog/123/_source
+
+Checking Whether a Document Exists
+
+If all you want to do is to check whether a document exists—you’re not interested in the content at all—then use the HEAD method instead of the GET method. HEAD requests don’t return a body, just HTTP headers:
+curl -i -XHEAD http://localhost:9200/website/blog/123
+
+Elasticsearch will return a 200 OK status code if the document exists:
+
+HTTP/1.1 200 OK
+Content-Type: text/plain; charset=UTF-8
+Content-Length: 0
+
+And a 404 Not Found if it doesn’t exist:
+
+Retrieving Multiple Documents
+edit
+
+As fast as Elasticsearch is, it can be faster still. Combining multiple requests into one avoids the network overhead of processing each request individually. If you know that you need to retrieve multiple documents from Elasticsearch, it is faster to retrieve them all in a single request by using the multi-get, or mget, API, instead of document by document.
+
+The mget API expects a docs array, each element of which specifies the _index, _type, and _id metadata of the document you wish to retrieve. You can also specify a _source parameter if you just want to retrieve one or more specific fields:
+
+GET /_mget
+{
+   "docs" : [
+      {
+         "_index" : "website",
+         "_type" :  "blog",
+         "_id" :    2
+      },
+      {
+         "_index" : "website",
+         "_type" :  "pageviews",
+         "_id" :    1,
+         "_source": "views"
+      }
+   ]
+}
+
+# Bulk insert/update/create/delete
+https://www.elastic.co/guide/en/elasticsearch/guide/current/bulk.html
+
+# How Primary and Replica Shards Interact
+We can send our requests to any node in the cluster. Every node is fully capable of serving any request. Every node knows the location of every document in the cluster and so can forward requests directly to the required node. In the following examples, we will send all of our requests to Node 1, which we will refer to as the coordinating node.
+
+When sending requests, it is good practice to round-robin through all the nodes in the cluster, in order to spread the load.
+
+# Search Lite:
+
+This query finds all documents of type tweet that contain the word elasticsearch in the tweet field:
+    GET /_all/tweet/_search?q=tweet:elasticsearch
+ The next query looks for john in the name field and mary in the tweet field. The actual query is just
+
++name:john +tweet:mary
+
+but the percent encoding needed for query-string parameters makes it appear more cryptic than it really is:
+
+GET /_search?q=%2Bname%3Ajohn+%2Btweet%3Amary
+
+The + prefix indicates conditions that must be satisfied for our query to match. Similarly a - prefix would indicate conditions that must not match. All conditions without a + or - are optional—the more that match, the more relevant the document.
+ 
+ 
+ The _all Field
+edit
+
+This simple search returns all documents that contain the word mary:
+
+GET /_search?q=mary
+
+In the previous examples, we searched for words in the tweet or name fields. However, the results from this query mention mary in three fields:
+
+    A user whose name is Mary
+    Six tweets by Mary
+    One tweet directed at @mary 
+
+How has Elasticsearch managed to find results in three different fields?
+
+When you index a document, Elasticsearch takes the string values of all of its fields and concatenates them into one big string, which it indexes as the special _all field. For example, when we index this document:
+
+{
+    "tweet":    "However did I manage before Elasticsearch?",
+    "date":     "2014-09-14",
+    "name":     "Mary Jones",
+    "user_id":  1
+}
+
+it’s as if we had added an extra field called _all with this value:
+
+"However did I manage before Elasticsearch? 2014-09-14 Mary Jones 1"
+The query-string search uses the _all field unless another field name has been specified.
+Tip
+
+The _all field is a useful feature while you are getting started with a new application. Later, you will find that you have more control over your search results if you query specific fields instead of the _all field. When the _all field is no longer useful to you, you can disable it, as explained in Metadata: _all Field.
+More Complicated Queries
+edit
+
+The next query searches for tweets, using the following criteria:
+
+    The name field contains mary or john
+    The date is greater than 2014-09-10
+    The _all field contains either of the words aggregations or geo 
+
++name:(mary john) +date:>2014-09-10 +(aggregations geo)
+
+As a properly encoded query string, this looks like the slightly less readable result:
+
+?q=%2Bname%3A(mary+john)+%2Bdate%3A%3E2014-09-10+%2B(aggregations+geo
+
+# Mapping and Analytics
+
+Requesting the mapping (or schema definition) for the tweet type in the gb index:
+GET /gb/_mapping/tweet
+
+So fields of type date and fields of type string are indexed differently, and can thus be searched differently. That’s not entirely surprising. You might expect that each of the core data types—strings, numbers, Booleans, and dates—might be indexed slightly differently. And this is true: there are slight differences.
+
+But by far the biggest difference is between fields that represent exact values (which can include string fields) and fields that represent full text. This distinction is really important—it’s the thing that separates a search engine from all other databases.
+
+Exact Values Versus Full Text
+
+Data in Elasticsearch can be broadly divided into two types: exact values and full text.
+
+Exact values are exactly what they sound like. Examples are a date or a user ID, but can also include exact strings such as a username or an email address. The exact value Foo is not the same as the exact value foo. The exact value 2014 is not the same as the exact value 2014-09-15.
+
+Full text, on the other hand, refers to textual data—usually written in some human language — like the text of a tweet or the body of an email.
+
+Querying full-text data is much more subtle. We are not just asking, “Does this document match the query” but “How well does this document match the query?” In other words, how relevant is this document to the given query?
+
+To facilitate these types of queries on full-text fields, Elasticsearch first analyzes the text, and then uses the results to build an inverted index. 
+
+This process of tokenization and normalization is called analysis, which we discuss in the next section.
+
+If we normalize the terms into a standard format, then we can find documents that contain terms that are not exactly the same as the user requested, but are similar enough to still be relevant. 
+Forms of normalization: uncapitalize tokens, stem-reduce tokents, use token synomyms
+
+Analysis must be performed on content when building inverted indexes and the query strings used when searching.
+
+Analysis and Analyzers
+edit
+
+Analysis is a process that consists of the following:
+
+    First, tokenizing a block of text into individual terms suitable for use in an inverted index,
+    Then normalizing these terms into a standard form to improve their “searchability,” or recall 
+
+This job is performed by analyzers. An analyzer is really just a wrapper that combines three functions into a single package:
+
+Character filters
+    First, the string is passed through any character filters in turn. Their job is to tidy up the string before tokenization. A character filter could be used to strip out HTML, or to convert & characters to the word and. 
+Tokenizer
+    Next, the string is tokenized into individual terms by a tokenizer. A simple tokenizer might split the text into terms whenever it encounters whitespace or punctuation. 
+Token filters
+    Last, each term is passed through any token filters in turn, which can change terms (for example, lowercasing Quick), remove terms (for example, stopwords such as a, and, the) or add terms (for example, synonyms like jump and leap). 
+    
+    Testing Analyzers
+
+Especially when you are new to Elasticsearch, it is sometimes difficult to understand what is actually being tokenized and stored into your index. To better understand what is going on, you can use the analyze API to see how text is analyzed. Specify which analyzer to use in the query-string parameters, and the text to analyze in the body:
+
+GET /_analyze
+{
+  "analyzer": "standard",
+  "text": "Text to analyze"
+}
+
+Mapping
+
+In order to be able to treat date fields as dates, numeric fields as numbers, and string fields as full-text or exact-value strings, Elasticsearch needs to know what type of data each field contains. This information is contained in the mapping.
+
+As explained in Data In, Data Out, each document in an index has a type. Every type has its own mapping, or schema definition. A mapping defines the fields within a type, the datatype for each field, and how the field should be handled by Elasticsearch. A mapping is also used to configure metadata associated with the type.
+
+Core Simple Field Types
+
+Elasticsearch supports the following simple field types:
+
+    String: string
+    Whole number: byte, short, integer, long
+    Floating-point: float, double
+    Boolean: boolean
+    Date: date 
+
+When you index a document that contains a new field—one previously not seen—Elasticsearch will use dynamic mapping to try to guess the field type from the basic datatypes available in JSON, using the following rules:
+
+JSON type                         Field type
+
+Boolean: true or false            boolean
+
+Whole number: 123                 long
+
+Floating point: 123.45            double
+
+String, valid date: 2014-09-15    date
+
+String: foo bar                   string 
+
+
+Viewing the Mapping
+
+We can view the mapping that Elasticsearch has for one or more types in one or more indices by using the /_mapping endpoint. At the start of this chapter, we already retrieved the mapping for type tweet in index gb:
+
+GET /gb/_mapping/tweet
+
+Complex Core Field Types
+
+Besides the simple scalar datatypes that we have mentioned, JSON also has null values, arrays, and objects, all of which are supported by Elasticsearch.
+Multivalue Fields
+
+It is quite possible that we want our tag field to contain more than one tag. Instead of a single string, we could index an array of tags:
+{ "tag": [ "search", "nosql" ]}
+
+Empty Fields
+
+Arrays can, of course, be empty. This is the equivalent of having zero values. In fact, there is no way of storing a null value in Lucene, so a field with a null value is also considered to be an empty field.
+
+These three fields would all be considered to be empty, and would not be indexed:
+
+"null_value":               null,
+"empty_array":              [],
+"array_with_null_value":    [ null ]
+
+Multilevel Objects
+
+The last native JSON datatype that we need to discuss is the object — known in other languages as a hash, hashmap, dictionary or associative array.
+
+Inner objects are often used to embed one entity or object inside another.
+
+Mapping for Inner Objects
+
+Elasticsearch will detect new object fields dynamically and map them as type object, with each inner field listed under properties:
+
+Mapping for Inner Objects
+
+Elasticsearch will detect new object fields dynamically and map them as type object, with each inner field listed under properties:
+
+
+RESTFUL API Endpoints:
+GET /_cluster/health  # Cluster health
+GET/_count  # Counts
+GET /megacorp/employee/_search  # Search
+_cluster/stats or _nodes/stats/jvm
+GET _cat/indices?v  # Get list of indices
+PUT /website/blog/123?op_type=create  # Create document if it doesn't already exist
+{ ... }
+
+And the second uses the /_create endpoint in the URL:
+PUT /website/blog/123/_create  # Create document if it doesn't already exist
+{ ... }
+
+POST /website/blog/1/_update   # Partial update to document
+{ ... }
+
+GET /_mget  # Retrieve multipe documents
+{ ... }   
+
+GET /gb/_mapping/tweet # request the mapping (or schema definition) for the tweet type in the gb index
+
+GET /_analyze # get analyzer details
+{ ... }
+
+
+# More on search:
+ /_search
+    Search all types in all indices 
+/gb/_search
+    Search all types in the gb index 
+/gb,us/_search
+    Search all types in the gb and us indices 
+/g*,u*/_search
+    Search all types in any indices beginning with g or beginning with u 
+/gb/user/_search
+    Search type user in the gb index 
+/gb,us/user,tweet/_search
+    Search types user and tweet in the gb and us indices 
+/_all/user,tweet/_search
+    Search types user and tweet in all indices 
+    
+# Query String Reference Doc: https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html#query-string-syntax
