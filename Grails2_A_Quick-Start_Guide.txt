@@ -13,6 +13,8 @@ web-app/css/main.css                                        # CSS code for the s
 grails create-service com.tekdays.Task                      # Create a service class
 grails create-integration-test com.tekdays.TaskService      # Create integration test
 grails test-app integration                                 # Run all the integration tests (against 'test' database)
+grails create-tag-lib com.tekdays.TekDays                   # Create a custom TabLib in grails-app/taglib/com/tekdays/TekDaysTagLib.groovy
+
 
 Introducing GORM
 What we just did is almost trivial as far as code goes but very interesting
@@ -790,4 +792,497 @@ The last section of the chapter shows an example of how to handle the content/di
 
 Chapter 7 Forum Messages and UI Tricks
 
+This chapter provides a running example for creating/displaying threaded messages for an event and demonstrates how to create custom views, GSP taglibs and AJAX calls.
+
+The <g:link> tag will create a link to the index action of the TekMessageController
+and will pass a TekEvent.id.
+
+The TekMessageConotroller index() method is updated to handle messages for a single TekEvent if a TekEvent ID is passed in otherwise the default behavior is used.
+
+Next the "new TekMessage" view is updated to allow a TekEvent ID to be passed in so that the TekMessage view does not have to prompt for this information.
+
+All we did here was add a params attribute to the <g:link> tag. This attribute is
+a Map containing parameters to be added to the URL created by the <g:link>
+tag. We then assign event.id to a key of the same name. (Since the key contains
+a “.”, we had to put it in quotes.) This will result in a parameter like event.id=2 .
+Grails’ binding will use that to retrieve a TekEvent instance and assign it to the
+TekMessage.event property. All of that and more is done with the following single
+line:
+respond new TekMessage(params)
+
+Believe this allows the view to respond with just the content for a single TekMessage.
+
+The book now shows how to create a custom AJAX enabled view (ajaxIndex.gsp) that displays the threaded messages for a single event with a "detail" pane to show the details for a single message. AJAX is used to update the view to retrieve and display the details for a single message. The TekMessage list and show views are replaced with the ajaxIndex.gsp view.
+
+GSP templates are simply chunks of GSP code in a file that begins with an
+underscore ( _likethis.gsp ). They provide an easy way to share common code
+across multiple pages (Grails’ use of the _form.gsp template for our create and
+edit views is a great example of this). You can include a template in a GSP
+page with the <g:render> tag, like this:
+<g:render template="someTemplate" />
+This line would render a template called _someTemplate.gsp in the same directory
+as the page that it is being called from. To render templates from a different
+directory, we add the path before the name of the template. We never include
+the “_” at the beginning of the template name in the <g:render> tag.
+Another popular use for GSP templates is rendering the response to Ajax
+calls; that’s what we’re after here. Before we get too much further, let us lay
+out the plan.
+
+
+Creating the Template
+Now we need to create the template that will display an individual message.
+This time, just create a blank file called _details.gsp in the TekDays/grails-
+app/views/tekMessage directory. We’ll borrow the <div> , <ol> , and three <li> tags
+from TekDays/grails-app/views/tekMessage/show.gsp . (The three <li> tags are for the
+subject , content , and author properties.) Because this file’s code will be inserted
+into another page, it doesn’t need its own <html> or <head> tags.
+
+Looking at the code for our template, we can see that the only data element
+that it will need is a TekMessage instance called (believe it or not) tekMessageIn-
+stance . This is important to note, because when a template is rendered, the
+data it requires needs to be passed to it. A template cannot automatically see
+the data elements of the page that renders it.
+
+Looking at the code for our template, we can see that the only data element
+that it will need is a TekMessage instance called (believe it or not) tekMessageIn-
+stance . This is important to note, because when a template is rendered, the
+data it requires needs to be passed to it. A template cannot automatically see
+the data elements of the page that renders it.
+
+Now we can use one of Grails’ Ajax tags, and it will adapt to use the jQuery
+library. [2] The tag we’re going to use is <g:remoteLink> .
+
+The <g:remoteLink> tag can take controller , action , and id attributes. If the controller
+attribute is not provided, then the controller that rendered the current page
+will be used by default. Since the ajaxIndex view will be rendered by the
+TekMessageController , we don’t need to specify it here. We did give it an action
+attribute, which points to an action (which we will create next in the TekMes-
+sageController ). Then for the id , we use the tekMessageInstance variable from the
+<g:each> . The final attribute that we set on the <g:remoteLink> tag is update . This
+attribute contains the ID of the HTML element on this page that will be
+updated with the result of the action—in this case, details .
+
+[1] See the Grails website for a list of supported libraries: http://grails.org/doc/2.3.1/guide/theWe-
+bLayer.html#ajax .
+[2] Grails handles any differences that might exist in the way different JavaScript libraries
+handle the tasks involved in the Ajax tags; the behavior of these tags is the same
+regardless of which of the supported libraries we use.
+
+For the body of the <g:remoteLink> , we used the tekMessageInstance variable to
+build a string containing the name of the message’s author and the subject
+of the message.
+
+``iOpen TekDays/grails-app/controllers/com/tekdays/TekMessageCon-
+troller.groovy , and add the following action:
+forum.2/TekDays/grails-app/controllers/com/tekdays/TekMessageController.groovy
+def showDetail() {
+   def tekMessageInstance = TekMessage.get(params.id)
+   if (tekMessageInstance) {
+      render(template:"details", model:[tekMessageInstance:tekMessageInstance])
+   }
+   else {
+      render "No message found with id: ${params.id}"
+   }
+}
+
+This action expects the params to contain an id value. The first thing we do is
+define a tekMessageInstance variable and retrieve a TekMessage using the id value
+in the params . If we have a valid instance, we call the render() method and pass
+it the name of a template (“details”) and a model , which is a Map . The model
+parameter is used to provide the data that the template will need; in this case,
+we have only one object in the model, but we can include as many objects as
+our template needs. The render() method will merge our template with the data
+in the tekMessageInstance bean and return the results as HTML. This HTML will
+then replace the contents of the <div> on our page.
+
+Now there’s just one thing left to do before we can marvel at our handiwork:
+we need to provide a way to reach our new view. If we added an action to the
+TekMessageController called ajaxIndex , it would automatically render our new view,
+but it would just be a copy of the index action, and that wouldn’t be very DRY.
+So, we’ll use a different approach. The same render() method that we just used
+for our details template can be used to render an entire view.
+
+This time, we pass a view parameter instead of a template . We set that parameter
+to our new page, and then we pass the existing Map as the model . Now when
+the index action is called (for example, when we navigate to http://localhost:8080/
+TekDays/tekMessage/index ), our new view will be rendered.
+
+The end of the chapter shows how to create a TagLib containing a resuable library call. In this case to create an indented threaded message content.
+
+
+Chapter 8: Knock, Knock: Who's There? Grails Security
+
+This chapter walks through using Grails filters to create a simple user authentication mechanism. If users attempt to access a privileged part of the application they are redirected to the login page. After successfully authenticating the user is redirected back to the privileged part of the app.
+
+The grails-app-views/tekUser/login.gsp view is created containing an HTML form to capture the user's username and password. The Form action redirects to the "validate" action to validate the username and password.
+
+After a standard Grails message block (which we will need if
+there are problems during login), we have an HTML form with fields for username
+and password , followed by a submit button. This page will be merged with our
+standard header because of this line: <meta name="layout" content="main" /> .
+
+One important point about this code is the action that we’ve assigned to the
+<g:form> : validate . This action will be called when we submit the form. It will
+reside in the TekUserController and will use the form data to load an existing
+TekUser if found.
+
+Next the validate() action is created in the grails-app/con-
+trollers/com/tekdays/TekUserController.groovy controller.
+
+The validate() action attempts to retrieve a TekUser for the params.username set by the HTML form. If found then the params.password is compared to the password for the retrieved TekUser. If everything is successful the TekUser object is added to the session scope via the session.user key and the user is redirected (for now to the TekEvent index() action...but shortly to the expected controller and actions). If the user fails to be authenticated then a flash.message is set and the login view is rendered which will display an error message.
+
+This action, rather than the login action, does the real work of logging a user
+into the system. In the first line, we define the variable user , to which we assign
+the result of a call to TekUser.findByUserName(params.username) . Next we check to
+see whether our user has a value and, if so, whether its password matches
+params.password . If both of those things are true, then we’ll stuff this TekUser
+instance in the session for later use and call the redirect() method to send the
+user to the index action of the TekEvent controller. If either is false, we add a
+message to flash and call the render() method to redisplay the login view.
+You’ll notice that we used two methods that we didn’t define anywhere. The
+redirect() and render() are added to all controller classes at runtime by Grails.
+The redirect() method will perform an HTTP redirect. That is, it will return a
+response to the client that will cause it to make a subsequent call to the URL
+that is created by the controller and action parameters.
+The render() method is very versatile. We used it earlier to respond to an Ajax call.
+In that instance, we passed it a template; here we pass it a view. In both cases,
+the end result was to send a chunk of text back to the client. This method can
+also be used to render XML, JSON, or any arbitrary text to the client.
+In this action, we write to session , which is a Map stored in the Session scope.
+Anything we put there will be available as long as this user is interacting with
+our application. And since it is a Groovy Map , we can add new key/value pairs
+by assigning a value to a nonexistent key. There was no user key in session , but
+we added the key and assigned the value in the following line: session.user =
+user . We did the same with flash , which is a Map stored in a special scope that
+lasts for this request and the next, after which the values we put in will be
+cleared out.
+Now that we have a login page and a process for logging a user in, let’s see
+how we can use filters to prompt the user to log in at the appropriate times.
+Filters
+Filters allow us to hook into, or intercept, the processing of a request. There
+are interceptors for before , after , and afterView . There are many uses for filters,
+and you can have as many filters as you need in an application. In our case,
+we’ll use a filter to determine whether a user is logged in when they try to
+access a “secure” page.
+
+Grails makes implementing filters a snap. Create a Groovy class
+with a name ending in Filters, and place it in the grails-app/conf directory. In
+this class, define a code block called filters , and then include individual filters
+as if they were methods. Each filter (method) can take named parameters for
+controller and action . Calls to this controller and action pair will be intercepted
+by this filter. (An asterisk can be used as a wildcard to represent any controller
+or action.) But enough chatter—let’s get to the code.
+Create a new file called TekDays/grails-app/conf/SecurityFilters.groovy
+
+lass SecurityFilters {
+    def filters = {
+        doLogin(controller:'*', action:'*'){
+            before = {
+                if (!controllerName)
+                    return true
+                def allowedActions = ['show', 'index', 'login',
+                                      'validate']
+                if (!session.user && !allowedActions.contains(actionName)){
+                    redirect(controller:'tekUser', action:'login',
+                             params:['cName': controllerName,
+                                     'aName':actionName])
+                    return false
+                }
+            }
+        }
+    }
+}
+
+In our SecurityFilters class, we create a single filter called doLogin with a before
+interceptor. We use wildcards for both controller and action parameters, which
+means this filter will be called for all actions. We don’t actually want to require
+the user to log in for every action, so we will fine-tune this filter further.
+Every filter has certain properties injected into it by Grails; among these are
+controllerName and actionName . These represent the original controller and action
+that the user was trying to access before the filter so rudely interrupted. We
+will use the actionName to determine whether we really want to filter this call.
+We’ll do this in two steps. In the first step, we’ll check to see whether we have
+a controllerName . If we don’t, then we can assume the user is going to the default
+home page ( index.gsp ), in which case we will return true . For the second step,
+we define a List variable with the names of actions that we want to allow. Along
+with the innocuous actions show and index , we included the login and validate
+actions to avoid unintended login loops. Then in our if comparison, we check
+to see whether this list contains the current actionName .
+The other thing we check in the if comparison is whether we already have a
+user in the session . If we do not have a user and the current action is not in the
+allowedActions list, we redirect to the login action of the TekUserController and pass
+along the controllerName and actionName values in the params parameter. (We’ll
+need them shortly.) In the final line, we return false , which will prevent any
+other filters (or the original action) from being called.
+
+The above filter redirects to the TekUserController login() action if the user needs to be authenticated. It adds to params a map containing the controller and action the user attempted to access.
+
+The TekUserController login() action is updated next to check for the existence of the controller/action name pair:
+
+    def login() {
+        if (params.cName)
+            return [cName:params.cName, aName:params.aName]
+    }
+
+This code checks to see whether those two values are available in params and,
+if so, passes them on to the view in the returned Map . Next, we’ll modify the
+view to pass these values on to the validate action. Open TekDays/grails-
+app/views/tekUser/login.gsp , and add the following hidden input elements somewhere
+inside the <g:form> .
+
+<input type="hidden" name="cName" value="${cName}">
+<input type="hidden" name="aName" value="${aName}">
+
+Now when the form is submitted, the controllerName and actionName values from
+the filter will be passed on to the validate action. We will now use these values
+to redirect the user to their original destination on successful login.
+Open TekDays/grails-app/controllers/com/tekdays/TekUserController.groovy ,
+
+The TekUserController validate() action is updated to check for the existence of the controller name, via params.cName, and if found redirects to the specified controller and action, otherwise it is assumed the user wants to redirect to the default index() action.
+
+Finally, the TekUserController logout() action is created to logout the user by setting the session.user key to null and redirecting to the default '/' URL.
+
+Since the way that our filter determines whether a user is logged in is by the
+existence of a value in the user key, we set that key to null to “log them out.”
+We don’t need to check for a user key before we do this; if it doesn’t exist, it
+will be created and set to null . Then, to send the logged-out user back to the
+home page, we use the redirect() method. In most cases, this method will take
+an action , or a controller and action pair. But it can also take a url , or, as in this
+case, a uri . Simply redirecting to a URI of / will return us to the home page no
+matter where we are in the application.
+
+A taglib named loginToggle is created to embed text in the main layout. The content indicates whether the user is logged in or out and updates a link to the appropriate TekUserController login() or logout() action to either log the user in or out.
+
+This tag doesn’t need any attributes or a body, so we skip the closure
+parameters altogether. We start by writing out an opening <div> . Then we
+check to see whether a user exists. If we have a user, we output a “Welcome”
+message and a link to allow them to log out. For the message, we use
+${session.user} inside a GString . (This will lead to a call to the TekUser.toString()
+method, which we defined earlier.) For the link, we use a regular anchor tag
+along with the <createLink> tag, called as a method. If there is no user, we just
+output a link to allow the user to log in. There’s also a little CSS, but that’s
+not too exciting.
+We’ll use this new tag in TekDays/grails-app/views/layouts/main.gsp
+
+
+ Chapter 9: Big-Picture Views
+
+In this iteration, we’re going to implement an organizer’s dashboard view. This view will not
+be tied to any one domain class but will interact with most (if not all) of them
+at one time. We might even hit data that is not from our domain.
+
+The chapter starts by refactoring the default homepage view in grails-
+app/views/index.gsp. 
+
+Take a look at the default content that is generated. It contains logic to get lots of interesting information about the grails app including grails version, groovy version, JVM version, and details about available controllers, domain classes, services, and tag libraries.
+
+ 
+The chapter moves on to create a Dashboard view for a TekEvent which pulls together information for various domain classes.
+
+Sidebar:
+The Grails convention of naming a controller with a domain class name followed by
+Controller, and the way that the generate-all script takes a domain class and generates
+a conventionally named controller and standard views in a directory with the same
+name, can make it seem like everything must be based on a domain class. The fact
+is that aside from the work of generate-all , there is no link between a domain class and
+a controller.
+Any domain class can be accessed from any controller. The static methods that Grails
+adds to domain classes ( get() , list() , and so on) are available in any controller.
+The real convention-based link is between controllers and views. An action in a con-
+troller will, unless directed otherwise, attempt to render a view named after the action,
+in a directory named after the controller. For example, a bar action in FooController will
+attempt to render the view in ../grails-app/views/foo/bar.gsp .
+
+A new Dashboard controller is created using grails create-controller com.tekdays.Dashboard.
+
+A barebones Dashboard view in grails-app/views/dashboard/dashboard.gsp is created. The barebones content is:
+<html>
+  <head>
+   <title>TekDays - Dashboard</title>
+   <meta name="layout" content="main" />
+  </head>
+  <body>
+   </body>
+</html>
+ 
+This page will have a good amount of content in it, so in order to keep it
+manageable from a coding standpoint, we’ll compose the page out of a series
+of templates. Our main dashboard page will consist of several <g:render> tags,
+which can easily be rearranged and styled as necessary.
+
+We added several <div> tags containing <g:render> tags. We can tweak the
+styling on these elements or change their order or what have you. Now we
+can address each template on its own, which will help our discussion (as well
+as our code) to be more organized. Recall that the <g:render> tag will insert the
+final HTML of the designated template inside the containing element—in this
+case, the <div> .
+
+The template for rendering "Sponsors" is interesting in that Many-to-Many relationships must be handled.
+
+A dashboard() action is created ingrails-app/controllers/com/tekdays/Dash-
+boardController.groovy. It is this action that builds a map of all the related domain objects for a TekEvent. When the dashboard() action returns the dashboard view is invoked to render content. The map provided by the dashboard() action is used to display content in the view.
+
+A simple menu is added to the dashboard view.
+
+Finally, a menu link is added from the TekEvent show view to allow navigation to the dashboard view for the TekEVent.
+
+
+
+Chapter 10: Seek, and You Shall Find
+
+This chapter covers various search alternatives.
+1. Dynamic Finders
+2. Hibername Criteria Builder
+3. The Searchable Plugin
+
+The first example uses Dynamic Finders.
+
+Dynamic Finders take the form:
+<domain class>.findAllBy<property type>(<property instance)
+
+Dynamic finders are great, and as you work with Grails, you will find yourself
+using them again and again, but they can take you only so far. For one thing,
+they are limited to top-level properties of the class—you cannot use dynamic
+finders to search relationships.
+
+Hibername Criteria Builder
+Our next search feature is to find TekEvent instances for which a logged-in user
+has volunteered. Volunteers for an event are in the volunteers collection, which
+is the result of a one-to-many relationship between TekEvent and TekUser . To
+search relationships, we must turn to a different tool in the Grails toolbox.
+The Criteria Builder in Grails is a very powerful and flexible tool for retrieving
+objects. It is based on the Hibernate Criteria API, so you can dig deeper by
+studying that technology. [1] However, this is Grails we’re talking about, so you
+can do plenty with this tool by following some simple examples.
+All Grails domain classes have a static createCriteria() method that returns a
+HibernateCriteriaBuilder instance. This builder has a list() method that takes a clo-
+sure. Inside this closure, we can define the criteria for our search.
+Here’s an example:
+def g3Events = TekEvent.createCriteria().list{
+  and{
+  gt('startDate', new Date())
+  or{
+    ilike('description', '%groovy%')
+    ilike('description', '%grails%')
+    ilike('description', '%griffon%')
+    }
+  }
+}
+
+Another nice feature of Criteria Builders is that relationship properties can
+easily be searched. This is also done with nested criteria blocks. Let’s see how
+this looks:
+[1] http://docs.jboss.org/hibernate/orm/3.3/reference/en-US/html/querycriteria.html
+
+def contegixEvents = TekEvent.createCriteria().list{
+  sponsorships{
+    sponsor{
+      eq('name', 'Contegix')
+    }
+  }
+}
+
+
+
+The Searchable Plugin
+
+What we’ll do instead
+is provide a single search field on our home page, and we’ll search for all
+possible matches to the value entered in that field. To do this, we’ll take
+advantage of one of the most powerful plugins in the Grails ecosystem; the
+Searchable plugin [2] takes the indexing and search capabilities of Compass
+and Lucene and makes them easy to use. It makes them so easy, in fact, that
+we call it “Grails-easy.”
+
+[2] Developed by Maurice Nicholson; see http://grails.org/plugin/searchable .
+
+To install a plugin,
+we simply declare it as a dependency in BuildConfig.groovy . (We can get the
+dependency that we need to declare from the plugin’s page in the plugin
+portal; the dependency for the Searchable plugin, for example, is listed at
+http://grails.org/plugin/searchable .)
+
+e.g.
+plugins {
+// plugins for the build system only
+build ":tomcat:7.0.42"
+// plugins for the compile step
+compile ":scaffolding:2.0.1"
+compile ':cache:1.1.1'
+compile ":webxml:1.4.1"
+compile ":searchable:0.6.6"
+<snip>
+
+}
+
+
+Sidebar: The 'searchable' plugin requires compass-2.2.1 which was not available in the default list of repositories. I had to add 
+         the 'mavenRepo "http://repo.grails.org/grails/core"' line to the
+         repositories configuration in conf/BuildConfig.groovy. See below: 
+  repositories {
+        inherits true // Whether to inherit repository definitions from plugins
+
+        grailsPlugins()
+        grailsHome()
+        mavenLocal()
+        grailsCentral()
+        mavenCentral()
+        // uncomment these (or add new ones) to enable remote dependency resolution from public Maven repositories
+        //mavenRepo "http://repository.codehaus.org"
+        //mavenRepo "http://download.java.net/maven/2/"
+        //mavenRepo "http://repository.jboss.com/maven2/"
+        mavenRepo "http://repo.grails.org/grails/core"
+
+  I also had to stop the app, run the 'grails refresh-dependencies' command, and then restart the app.
+
+=======end sidebar======
+
+For any domain class that you want to be searchable add the line
+static searchable = true
+
+That single line of code, static searchable = true , enables full-text search
+of all the simple properties of the TekEvent. A method named search() will be added by the Searchable plugin. It takes a 
+search phrase as input.he search() method returns a
+SearchResult instance, which contains a results property that is a List .
+
+Sidebar:
+At times, you may need to search for objects based on the properties of related objects.
+The Searchable plugin makes this easy also. Let’s say, for example, that you want to
+be able to search for TekEvent instances based on the properties of their organizer or
+volunteers . These are both of type TekUser , so add this line to the TekUser class:
+static searchable = true
+Now go to the TekEvent class, and change that searchable declaration to look like this:
+static searchable = {
+  organizer component: true
+  volunteers component: true
+}
+
+All you did was turn TekUser into a searchable class. Then you used the Searchable
+plugin’s mapping DSL to tell it that the organizer and volunteers properties are searchable
+components. Notice that you don’t have searchable = true anywhere in the TekEvent class;
+assigning a mapping closure to the searchable property automatically sets it to true.
+There’s a great deal more that can be done with the Searchable plugin—much more
+than we can cover here. Fortunately, you can find extensive documentation at
+http://grails.org/plugin/searchable .
+
+A search() action is added to the TekEventController.groovy controller that will invoke the TekEvent.search() Searchable method to perform the search when needed.
+
+Finally the following logic is added to the grails-app/views/index.gsp to add a form to allow the user to search:
+<div id="homeSearch">
+  <g:form controller="tekEvent" action="search">
+    <label>Search:</label>
+    <input id="query" type="text" name="query" />
+    <input type=submit value="Go" />
+    </g:form>
+</div>
+
+
+The above form will invoke the TekEventController.search() method when the form is submitted.
+
+One last tweak is needed. The grails-app/conf/SecurityFilters.groovy class is updated to allow the search action to be invoked without the user being logged into the application.
+
+
+
+
+ 
  
