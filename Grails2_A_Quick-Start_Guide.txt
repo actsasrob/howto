@@ -1282,7 +1282,281 @@ The above form will invoke the TekEventController.search() method when the form 
 One last tweak is needed. The grails-app/conf/SecurityFilters.groovy class is updated to allow the search action to be invoked without the user being logged into the application.
 
 
+Chapter 11 Icing on the Cake
+
+The jQuery UI Plugin
+The first item on the new list is really just an improvement on one of the
+original features. We did provide a way for people to volunteer to help on
+events, but it’s not very user friendly. So, we’ll tackle this one right away.
+We’ll add a button to the TekEvent show view that will allow logged-in users to
+volunteer to help on this event. When they click it, we’ll show them a nice
+confirmation dialog box, and if they confirm, we’ll add them to the volunteers
+collection for that event.
+We’ll start with the button. At first, that would seem as simple as adding a
+<button> tag somewhere on our page. But there is some logic involved. We
+don’t want to show the button if the user is not logged in. Then if they are
+logged in, we don’t want to show the button if they are already volunteering
+for this event.
+We will put this logic into a custom tag.
+
+The following taglib is added to grails-app/taglib/com/tekdays/TekDaysTabLib.groovy:
+    def volunteerButton = {attrs ->
+        if (request.getSession(false) && session.user){
+            def user = session.user.merge()
+            def event = TekEvent.get(attrs.eventId)
+            if (event && !event.volunteers.contains(user)){
+                out << "<span id='volunteerSpan' class='menuButton'>"
+                out << "<button id='volunteerButton' type='button'>"
+                out << "Volunteer For This Event"
+                out << "</button>"
+                out << "</span>"
+            }
+        }
+    }
+
+
+If a user is logged in, there will be a TekUser in the session called user , so that’s
+our first test. If we have a logged-in user, we’ll call the merge() method on it.
+(We need to do this because objects stored in the session become detached
+from the Hibernate session.) Then we use the eventId attribute to get the TekEvent
+instance. Once the user has been merged, we can pass it to the contains() method
+of the event.volunteers to see whether this user is already a volunteer. If they
+are not, we’ll go ahead and write out the button.
+
+We start with a <span> with
+a class of menuButton and id of volunteerSpan . Note this id ; it will become important
+shortly.
+Next we write out the <button> with its id and type , followed by the text of the
+button. We finish by closing up all our tags.
+Now we’ll drop this tag in the navigation bar on the TekEvent show view, in
+TekDays/grails-app/views/tekEvent/show.gsp .
+
+<li><g:volunteerButton eventId="${tekEventInstance.id}" /></li>
+
+The next thing is to make the button do something and add a confirmation dialog.
+
+What we
+want is a confirmation dialog box, followed by a call to an action that will add
+this user to the volunteers collection of this TekEvent . Since we don’t want a
+boring JavaScript dialog box, we’ll use the jQuery UI plugin to get a much
+more attractive one.
+The jQuery UI plugin [1] includes jQuery UI [2] resources (CSS and JavaScript) in
+our GSP pages, making it simpler to work with the library in a Grails applica-
+tion. Some of the components included in jQuery UI are Autocomplete, Tabs,
+Progressbar, and the one we’re going to use, Dialog. To install the plugin, add
+the following dependency to the list of compile step plugins in TekDays/grails-
+app/conf/BuildConfig.groovy :
+compile ":jquery-ui:1.8.24"
+
+[1] http://grails.org/plugin/jquery-ui
+[2] You can find very detailed documentation on jQuery UI at http://jqueryui.com/ .
 
 
  
+Add the dialog box component to our TekEvent show view.
+Back in TekDays/grails-app/views/tekEvent/show.gsp , go ahead and add the highlighted
+lines to the <head> section:
+
+  <g:javascript library="jquery" />
+  <r:require module="jquery-ui" />
+
+Just as we saw in Ajax in Grails, on page 112, the <g:javascript> tag here is
+declaring the JavaScript library that we’re using. (The jQuery UI plugin
+depends on the jQuery plugin, [3] which is included in our app automatically
+by Grails.) The <r:require> tag is being used to tell Grails’ Resources framework
+that we are using the jquery-ui module provided by the jQuery UI plugin.
+Next, we need to add the code for the jQuery UI dialog component. Add the
+following code right before the closing </body> tag:
+
+    <script type="text/javascript">
+        $(document).ready(function() {
+            $('#volunteerDialog').hide();
+            $( "#volunteerButton" ).click(function() {
+                $("#volunteerDialog").dialog({
+                    resizable: false,
+                    height:180,
+                    width: 420,
+                    modal: false,
+                    buttons: {
+                        "Submit": function() {
+                            $.ajax({
+                                type: "post",
+                                dataType: "html",
+                                url: "${g.createLink(action:'volunteer')}",
+                                async: false,
+                                data: $("#volunteerForm").serialize(),
+                                success: function (response, status, xml) {
+                                    $("#volunteerSpan").html(response);
+                                }
+                            });
+							
+                            $(this).dialog("close");
+                        },
+                        Cancel: function() {
+                            $(this).dialog( "close" );
+                        }
+                    }
+                });
+            });
+        });
+    </script>
+    <div id="volunteerDialog" title="Volunteer for ${tekEventInstance.name}">
+      <g:form name="volunteerForm" action="volunteer">
+        <g:hiddenField name="id" value="${tekEventInstance.id}" />
+        <p>Welcome to the team! Your help will make a huge difference.</p>
+      </g:form>
+    </div>
+
+[3] http://grails.org/plugin/jquery
+
+
+Note how easy Grails makes it for us to add JavaScript to a GSP. Our new
+JavaScript code here is using jQuery UI to show and hide a simple volunteerDialog
+<div> , which contains a <g:form> with a hidden input for the id of our event.
+The form’s action attribute is set to volunteer , which is the name of the TekEvent-
+Controller action that we will use to add the logged-in user to this event’s
+volunteers.
+OK. Our dialog box is all set up. We could even run this now and it would
+show up, but we would just get a nasty error in the console if we tried to
+submit. Let’s create the volunteer action in TekDays/grails-app/controllers/com/tek-
+days/TekEventController.groovy , like so:
+
+    def volunteer = {
+        def event = TekEvent.get(params.id)
+        event.addToVolunteers(session.user)
+        event.save()
+        render "Thank you for Volunteering"
+    }
+
+The volunteer action is the heart of this feature, even though it’s only a few
+lines of code. First we use the id that was passed in the hidden input field to
+get the TekEvent instance. Then we add the logged-in user ( session.user ) to the
+volunteers collection. Next, we save the event, and finally, we render a text
+message that will replace the button in the volunteerSpan . This action is a great
+example of how the productivity of Grails doesn’t come in scaffolding or code
+generation; it comes in the way you are able to accomplish so much with so
+little code. Scaffolding helps out as you start a new application, but this
+ability to enhance and expand your application quickly is where the real
+productivity gains come in.
+
+See the chapter for a walkthru regarding how to use the twitter4J API.
+
+User-Friendly URLs
+We now need to provide a way to access our event page using a simple URL.
+
+Grails provides a simple way to do this. Every
+Grails application has a UrlMappings class, which uses a DSL [7] to build URL
+mappings. The conventional Grails mappings are in there by default, and we
+can add as many different mappings as needed. Let’s take a look at the default
+
+7.  Domain-specific language.
+
+mappings to get an idea of how this works. Open TekDays/grails-app/conf/UrlMap-
+pings.groovy :
+
+class UrlMappings {
+  static mappings = {
+    "/$controller/$action?/$id?(.${format})?"{
+      constraints {
+         // apply constraints here
+      }
+    }
+    "/"(view:"/index")
+    "500"(view:'/error')
+  }
+}
+
+The static mappings block is the heart of the UrlMappings class. Inside this block
+we see the mappings for the conventional Grails behavior. The first value
+found after the root ( / ) will be assigned to the controller variable. The next value
+will be assigned to the action , and the one after that will be assigned to the id .
+(In the case of using file extensions for content negotiation, a file extension—
+which would then be the last value—would be assigned to the format variable.)
+The first variable, controller , is required; the rest have a ? on the end, which
+marks them as optional. What this means is that any URL with one, two,
+three, or four values after the root (including a file extension) will match this
+mapping and be applied accordingly. If we were to create a FooController , /foo
+would be mapped to the FooController ’s default action, /foo/bar would be mapped
+to the bar action of FooController , and /foo/bar/baz would be mapped to the bar action
+of FooController with an id parameter of baz .
+
+Inside the mapping block there is an empty constraints block, where we can put
+constraints on the different variables, much as we did earlier on domain class
+properties. After this, we have the two other default mappings. The root
+mapping, when nothing but the application root is in the URL, maps directly
+to the index view. Mapping directly to a view makes sense for pages that don’t
+need any data; for example, you might use this for an About page. Last of all,
+we have the 500 error mapping.
+Let’s add another mapping that will match the URLs that we want to support.
+The code in grails-app/conf/UrlMappings.groovy should look something like this:
+
+        "/events/$nickname"{
+            controller = "tekEvent"
+            action = "show"
+        }
+
+The default Grails mapping uses all variables. Our mapping is using a static
+value ( events ) and a variable ( $nickname ). Since our mapping does not include
+variables for controller and action , we need to set those inside the mapping block.
+This mapping will match any URL that starts with the word events and has
+one more value, which will be assigned to the variable $nickname . The matched
+URL will be directed to the show action of TekEventController with a nickname
+parameter. So, now we need our controller to make use of the nickname .
+We’re going to modify the show action to use a nickname parameter to show a
+TekEvent instance. Before we do that, though, we need to add a nickname to
+TekEvent . In TekDays/grails-app/domain/com/tekdays/TekEvent.groovy , add the two high-
+lighted lines below:
+
+package com.tekdays
+class TekEvent {
+    String city
+    String name
+    TekUser organizer
+    String venue
+    Date startDate
+    Date endDate
+    String description
+-->    String nickname
+    String toString(){
+      "$name, $city"
+    }
+
+    static searchable = true
+    static hasMany = [volunteers : TekUser,
+                      respondents : String,
+                      sponsorships : Sponsorship,
+                      tasks : Task,
+                      messages : TekMessage]
+    static constraints = {
+        name()
+        city()
+        description maxSize: 5000
+        organizer()
+        venue()
+        startDate()
+        endDate()
+        volunteers nullable: true
+        sponsorships nullable: true
+        tasks nullable: true
+        messages nullable: true
+-->        nickname nullable: true
+    }
+}
+
  
+Now that we have that property, let’s get to work. Open TekDays/grails-app/con-
+trollers/com/tekdays/TekEventController.groovy , and modify the show action like this:
+
+This action’s job is to pass a TekEvent instance to the show view. Here, we’re
+beginning the action by declaring the tekEventInstance , and we’re giving the
+action two different ways to retrieve it: by its id or by its nickname . To do this,
+we separate the variable declaration from the assignment. We use an if to
+decide whether to retrieve the instance by nickname or by id . If there’s a nickname
+value in the params , we use the dynamic finder findByNickname() . Then, to make
+our error messages clearer in case we don’t find an instance, we use another
+if block to determine the appropriate error message to display.
+We added the nickname of “GatewayCode” to one of our test events, so now
+we can navigate to http://localhost:8080/TekDays/events/GatewayCode to view the home
+page of the event.
+
+
