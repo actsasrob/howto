@@ -1644,3 +1644,5 @@ sudo docker build -t tomcat7_tekdays_prod .
 # Now start a tomcat7 docker container and link to the MySQL 5.7 container:
 sudo docker run -it --link mysql57prod1:mysql57prod1 -p 8888:8080 tomcat7_tekdays_prod
 
+# Navigate to the app in a browser:
+http://localhost:8888/TekDays-0.1/
