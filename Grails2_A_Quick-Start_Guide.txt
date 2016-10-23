@@ -14,7 +14,8 @@ grails create-service com.tekdays.Task                      # Create a service c
 grails create-integration-test com.tekdays.TaskService      # Create integration test
 grails test-app integration                                 # Run all the integration tests (against 'test' database)
 grails create-tag-lib com.tekdays.TekDays                   # Create a custom TabLib in grails-app/taglib/com/tekdays/TekDaysTagLib.groovy
-
+grails set-version 0.2                                      # The version is used in various commands including the war command which will 
+                                                            # append the application version to the end of the created WAR file.
 
 Introducing GORM
 What we just did is almost trivial as far as code goes but very interesting
@@ -1559,4 +1560,87 @@ We added the nickname of “GatewayCode” to one of our test events, so now
 we can navigate to http://localhost:8080/TekDays/events/GatewayCode to view the home
 page of the event.
 
+
+Chapter 12 Parting Thoughts
+
+Updated the application to use MySQL for test and prod databases.
+
+To start the app up in test or prod, respectively, use the following:
+grails test run-app
+grails production run-app
+
+Configuring the data source using JNDI. This allows the Tomcat or JEE container to supply database login credentials via JNDI so
+that the grails app doesn't need to be deployed with database credentials.
+
+Here is a good StackOverflow page regarding how to configure Tomcat to select grails environment to use when running application:
+http://stackoverflow.com/questions/18897361/select-grails-environment-in-tomcat
+
+this goes in tomcat conf/Context.xml:
+	<Resource auth="Container"
+	driverClassName="com.mysql.jdbc.Driver"
+	maxActive="100"  maxIdle="30" maxWait="10000"
+	name="jdbc/ProdDB" type="javax.sql.DataSource"
+	url="jdbc:mysql://beach.home:3306/tekdays"
+	username="tekdaysuser"  password="password" />
+
+In MySQL I created the tekdays database as follows:
+mysql> create database tekdays;
+mysql> CREATE USER 'tekdaysuser'@'%' IDENTIFIED BY 'password';
+mysql> select User,Host from mysql.user;
+mysql> GRANT ALL PRIVILEGES ON tekdays.* To 'tekdaysuser'@'%' IDENTIFIED BY 'password' WITH GRANT OPTION; FLUSH PRIVILEGES;
+mysql> show grants for 'tekdaysuser'@'%';
+NOTE: the "WITH GRANT OPTION" may not actually be needed.
+
+I ran into a problem where the database tables were not being created the first time the application connected to MySQL.
+According to
+http://grails.asia/how-to-make-grails-use-jndi-datasource-with-tomcat
+
+The "dbCreate = "update" line needs to be added to the dataSource line in grails-app/DataSource.groovy. As follows:
+	production {
+		dataSource {
+			dbCreate = "update"
+			jndiName = "java:comp/env/jdbc/ProdDB"
+		}
+	}
+
+then re-create the war file and deploy to tomcat. Even when I did that I had to stop tomcat. Delete the existing exploded 
+application directory, then restart tomcat and have it explode the latest war file.
+
+According to the above link the mysql jdbc driver jar file needs to be deployed to the <tomcat>/lib directory. That may not
+be needed if the mysql jdbc driver plugin is included with the grails application. However this step may be needed as a runtime
+dependency. Say the h2 database is used for development so the mysql jdbc driver plugin is not listed as a dependency for the
+grails app. But the test/production environments use tomcat and use JNDI to discover the data source information. If the JNDI
+configuration specifies points to a MySQL database then the MySQL JDBC driver jar file would needed to be added to <tomcat>/lib.
+
+
+======= How to create tekdays database in MySQL 5.7
+mysql> create database tekdays;
+mysql> CREATE USER 'tekdaysuser'@'%' IDENTIFIED BY 'password';
+mysql> select User,Host from mysql.user;
+mysql> GRANT ALL PRIVILEGES ON tekdays.* To 'tekdaysuser'@'%' IDENTIFIED BY 'password'; FLUSH PRIVILEGES;
+show grants for 'tekdaysuser'@'%';
+show grants for root;
+
+
+======= How to use Docker to create MySQL 5.7 DB container, How to create Docker tomcat7 container running TekDays app 
+======= and how to link the MySQL and tomcat7 containers 
+# Start up a MySQL 5.7 instance using docker with local port 3306 NATed through to port 3306 in the docker container
+# NATing the ports allows someone to connect to MySQL running in the container to perform DB admin
+docker run --name mysql57 -e MYSQL_ROOT_PASSWORD=my-secret-pw -p 3306:3306 -d mysql/mysql-server:5.7
+
+
+# Start up a MySQL 5.7 instance using docker that it can be linked to from a tomcat7 docker container
+# The -h option will set a hostname. In this case mysql57prod1. This will be used when configuring the MySQL host to connect
+# from the tomcat7 docker container:
+sudo docker run -name mysql57prod1 -h mysql57prod1 -e MYSQL_ROOT_PASSWORD=my-secret-pw -p 3306:3306 -d mysql/mysql-server:5.7
+
+# cd /home/dev/docker/TekDays_tomcat7. Edit the context.xml and set the URL of the MySQL DB to point to mysql57prod1
+e.g.
+url="jdbc:mysql://mysql57prod1:3306/tekdays"
+
+# Build the tomcat7 docker container
+sudo docker build -t tomcat7_tekdays_prod .
+
+# Now start a tomcat7 docker container and link to the MySQL 5.7 container:
+sudo docker run -it --link mysql57prod1:mysql57prod1 -p 8888:8080 tomcat7_tekdays_prod
 
