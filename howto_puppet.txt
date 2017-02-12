@@ -1,0 +1,153 @@
+# How to search for/install a module (Graphite in this example) using Puppet Forge:
+
+Puppet operates a service called the Puppet Forge (https://forge.puppet.com/), which serves as a repository for Puppet modules. A module nicely packages all the code and data Puppet needs to manage a given aspect in your infrastructure, which is especially helpful when you're dealing with a complex application like Graphite.
+
+The puppet module tool lets you search for modules directly from the command line. 
+puppet module search graphite
+
+For Puppet Enterprise, the default modulepath is /etc/puppetlabs/code/environments/production/modules.
+
+The graphite module includes Puppet code that defines a graphite class. In Puppet, a class is simply a named block of Puppet code that defines a set of associated system resources. A class might install a package, customize an associated configuration file for that package, and start a service provided by that package. These are related and interdependent processes, so it makes sense to organize them into a single configurable unit: a class.
+While a module can include many classes, it will generally have a main class that shares the name of the module. This main class will often handle the basic installation and configuration of the primary component the module is designed to manage.
+The graphite class contains the instructions Puppet needs to set up Graphite, but you still need to tell Puppet where and how you want it to apply the class across your infrastructure. This process of matching classes to nodes is called classification.
+
+NOTE: Puppet Approved modules adhere to a set of Puppet specifications for style, documentation, and semantic versioning, along with other best practices standards. Puppet Supported modules are rigorously tested for compatibility with Puppet Enterprise and are fully covered by Puppet's support team.
+
+# Install a puppet module:
+puppet module install dwerder-graphite -v 5.16.1
+
+When you ran the puppet module command, Puppet retrieved the graphite module from Forge and placed it in the Puppet master's modulepath. The modulepath is where Puppet will look to find Puppet classes and other files and resources made available by any modules you download or create. For Puppet Enterprise, the default modulepath is /etc/puppetlabs/code/environments/production/modules.
+
+
+# Use the PE console to define a node group, adding the Learning VM to the group, and classifying the group with the graphite class.
+Of course, you could use a command like ifconfig to find this, but let's do it the Puppet way. Puppet uses a tool called facter to collect facts about a system and make them available at catalog compilation. This is how it knows, for example, whether it's on Ubuntu and needs to use apt-get or CentOS and needs yum. You'll learn more about facts and conditionals in Puppet later. For now, we can use facter in the command-line to determine the Learning VM's IP address.
+facter ipaddress
+
+Open a web browser on your host machine and go to https://<IPADDRESS>, where <IPADDRESS> is the Learning VM's IP address. (Be sure to include the s in https!)
+When prompted, use the following credentials to log in:
+
+    username: admin
+
+    password: puppetlabs
+
+
+# Create a node group
+
+Now that you have access to the PE console, we'll walk you through the steps to classify the "learning.puppetlabs.vm" node (i.e. the Learning VM) with the graphite class.
+First, create a Learning VM node group. Node groups allow you to segment all the nodes in your infrastructure into separately configurable groups based on the node's certname and all information collected by the facter tool.
+Click on Classification in the console navigation bar. It may take a moment to load.
+
+# Add a class
+
+When you installed the dwerder-graphite module from the forge, it made the graphite class available in the console.
+Under the Classes tab in the interface for the Learning VM node group, find the Class name text box. When you click in 1
+the classes textbox and begin typing, the graphite class should autofill. If it does not, click the Refresh button near the top right of the classes interface and wait a moment before trying again. 
+
+Before you apply the class, there are a few parameters you'll want to set.
+We already have an Apache server configured to our liking on the Learning VM, so we can tell the graphite class it doesn't need to bother setting up its own server.
+There are also some compatibility issues with the latest Django version. The author of this graphite module has made it easy to get around this problem by picking our own compatible Django version to use. (Keep this in mind when you start writing your own modules!)
+
+Set the parameters, as follows:
+
+    gr_web_server = none
+    gr_django_pkg = django
+    gr_django_provider = pip
+    gr_django_ver = "1.5"
+
+Note that the gr_django_ver parameter takes a string, not float value, so it must be wrapped in quotes for Puppet to parse it correctly.
+Double check that you have clicked the Add parameter button for all of your parameters, then click the Commit 5 changes button in the bottom right of the console window to commit your changes.
+
+# Run Puppet
+
+Now that you have classified the learning.puppetlabs.vm node with the graphite class, Puppet knows how the system should be configured, but it won't make any changes until a Puppet run occurs.
+By default, the Puppet agent daemon runs in the background on all nodes you manage with Puppet. Every 30 minutes, the Puppet agent daemon requests a catalog from the Puppet master. The Puppet master parses all the classes applied to that node, builds the catalog to describe how the node is supposed to be configured, and returns this catalog to the node's Puppet agent. The agent then applies any changes necessary to bring the node in line with the state described by the catalog.
+
+To avoid surprises, however, we've disabled these scheduled runs on the Learning VM. Instead, we'll be using the puppet agent tool to trigger runs manually.
+As you're working through this Quest Guide, keep in mind that the Learning VM is running both a Puppet master and a Puppet agent. This is a bit different than what you'd see in a typical architecture, where a single Puppet master would serve a collection of Puppet agent nodes. The Puppet master is where you keep all your Puppet code. Earlier when you used the puppet module tool to install the graphite module, that was a task for the Puppet master. When you want to manually trigger a Puppet run with the puppet agent tool, that's a command you would use on an agent node, not the master.
+So put on your agent hat and trigger a Puppet run:
+
+puppet agent --test
+
+Graphite is a complex piece of software with many dependencies, so this may take a while to run. After a brief delay, you will see text scroll by in your terminal indicating that Puppet has made all the specified changes to the Learning VM.
+
+You can also check out the Graphite console running on port 90. (http://<IPADDRESS>:90)
+We've selected a few parameters as an example. Paste the following path after the Graphite console URL to try it out:
+/render/?width=586&height=308&_salt=1430506380.148&from=-30minutes&fontItalic=false&fontName=Courier&target=alias(carbon.agents.learning_puppetlabs_vm-a.cpuUsage%2C"CPU")&target=alias(secondYAxis(carbon.agents.learning_puppetlabs_vm-a.memUsage)%2C"Memory")&majorGridLineColor=C0C0C0&minorGridLineColor=C0C0C0
+Note that Graphite has only been running for a few minutes, so it may not yet have much data to chart. If you wait a minute and refresh the page in your browser, you will see the graph update with new data.
+e.g. http://192.168.1.12:90/render/?width=586&height=308&_salt=1430506380.148&from=-30minutes&fontItalic=false&fontName=Courier&target=alias(carbon.agents.learning_puppetlabs_vm-a.cpuUsage%2C%22CPU%22)&target=alias(secondYAxis(carbon.agents.learning_puppetlabs_vm-a.memUsage)%2C%22Memory%22)&majorGridLineColor=C0C0C0&minorGridLineColor=C0C0C0
+
+
+
+Resources Quest
+Quest objectives
+
+    Understand how resources on the system are modeled in Puppet's Domain Specific Language (DSL).
+    Use Puppet to inspect resources on your system.
+    Use the Puppet Apply tool to make changes to resources on your system.
+    Learn about the Resource Abstraction Layer (RAL).
+
+Before you go on to learn the more complex aspects of Puppet, you should start with a solid understanding of resources, the fundamental building blocks of Puppet's declarative modeling syntax.
+In this quest, you will learn what resources are and how to inspect and modify them with Puppet command-line tools.
+
+Taking common tasks and abstracting away the complexities and pitfalls doesn't just make those tasks themselves easier, it gives you the stable, repeatable, and testable foundation you need to build something new.
+For Puppet, this foundation is a system called the resource abstraction layer. Puppet interprets any aspect of your system configuration you want to manage (users, files, services, and packages, to give some common examples) as a unit called a resource. Puppet knows how to translate back and forth between the resource syntax and the 'native' tools of the system it's running on. Ask Puppet about a user, for example, and it can represent all the information about that user as a resource of the user type. Of course, it's more useful to work in the opposite direction. Describe how you want a user resource to look, and Puppet can go out and make all the changes on the system to actually create or modify a user to match that description.
+The block of code that describes a resource is called a resource declaration. These resource declarations are written in Puppet code, a Domain Specific Language (DSL) based on Ruby.
+
+
+Puppet's Domain Specific Language
+
+A good understanding of the Puppet DSL is a key first step in learning how to use Puppet effectively. While tools like the PE console give you quite a bit of power to make configuration changes at a level above the code implementation, it always helps to have a solid understanding of the Puppet code under the hood.
+Puppet's DSL is a declarative language rather than an imperative one. This means that instead of defining a process or set of commands, Puppet code describes (or declares) only the desired end state. With this desired state described, Puppet relies on built-in providers to handle implementation.
+One of the points where there is a nice carry over from Ruby is the hash syntax. It provides a clean way to format this kind of declarative model, and is the basis for the resource declarations
+
+As we mentioned above, a key feature of Puppet's declarative model is that it goes both ways; that is, you can inspect the current state of any existing resource in the same syntax you would use to declare a desired state.
+
+Use the puppet resource tool to take a look at your root user account. The syntax of the command is: puppet resource \ \.
+
+puppet resource user root 
+
+This resource declaration syntax is composed of three main components:
+
+    Type
+    Title
+    Attribute value pairs
+
+Resource Type
+
+You'll get used to the resource syntax as you use it, but for this first look we'll go through the example point by point.
+
+We'll start with the first line first:
+
+  user { 'root':
+    ...
+  }
+
+The word user, right before the curly brace, is the resource type. The type represents the kind of thing that the resource describes. It tells Puppet how to interpret the rest of the resource declaration and what kind of providers to use for managing the underlying system details.
+
+Puppet includes a number of built-in resource types, which allow you to manage aspects of a system. Below are some of the core resource types you'll encounter most often:
+
+    user A user
+    group A user group
+    file A specific file
+    package A software package
+    service A running service
+    cron A scheduled cron job
+    exec An external command
+    host A host entry
+
+If you are curious to learn about all of the built-in resources types available, see the Type Reference Document or try the command puppet describe --list.
+
+Resource Title
+
+Take another look at the first line of the resource declaration.
+
+  user { 'root':
+    ...
+  }
+
+The single quoted word 'root' just before the colon is the resource title. Puppet uses the resource title as its own internal unique identifier for that resource. This means that no two resources of the same type can have the same title.
+
+In our example, the resource title, 'root', is also the name of the user we're inspecting with the puppet resource command. Generally, a resource title will match the name of the thing on the system that the resource is managing. A package resource will usually be titled with the name of the managed package, for example, and a file resource will be titled with the full path of the file.
+
+Keep in mind, however, that when you're creating your own resources, you can set these values explicitly in the body of a resource declaration instead of letting them default to the resource title. For example, as long as you explicitly tell Puppet that a user resource's name is 'root', you can actually give the resource any title you like. ('superuser', maybe, or even 'spaghetti') Just because you can do this, though, doesn't mean it's generally a good idea! Unless you have a good reason to do otherwise, letting Puppet do its defaulting magic with titles will save you typing and make your Puppet code more readable.
+
