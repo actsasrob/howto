@@ -318,9 +318,11 @@ Puppet executes functions when building the catalog; thus, functions can change 
 * Dynamically generate and execute code segments
 
 Functions can be written in the common prefix format or in the Ruby-style chained format. The following two calls will return the same result:
-```# Common prefix format
+```
+Common prefix format
 notice( 'this' )
-# Ruby-style chained format
+
+Ruby-style chained format
 'this'.notice()
 ```
 
@@ -331,11 +333,11 @@ A function is executable code that may accept input parameters, and may output a
 
 The function can also be used in place of a value, or interpolated into a string:
 ```
-# md5() function provides the value for the message attribute
+md5() function provides the value for the message attribute
 notify { 'md5_hash':
   message => md5( $facts['fqdn'] )
 }
-# Include the MD5 hash in the result string
+Include the MD5 hash in the result string
 $result = "The MD5 hash for the node name is ${md5( $facts['fqdn'] )}"
 ```
 
