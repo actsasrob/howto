@@ -158,8 +158,8 @@ $my_age		= 29	# numeric
 $a_boolean	= false	# boolean
 ```
 
-*NOTE: Previous versions of Puppet allowed uppercase letters, periods, and dashes with inconsistent results. Puppet 4 has improved reliability by enforcing these standards.
-*NOTE: Variables starting with underscores should only be used within the local scope
+*NOTE: Previous versions of Puppet allowed uppercase letters, periods, and dashes with inconsistent results. Puppet 4 has improved reliability by enforcing these standards.*
+*NOTE: Variables starting with underscores should only be used within the local scope*
 
 A variable that has not been initialized will evaluate as undefined, or undef . You can also explicitly assign undef to a variable:
     $notdefined = undef
@@ -178,7 +178,7 @@ In Puppet 4, unquoted numerals are evaluated as a Numeric data type. Numbers are
 * Octal numbers (most commonly used for file modes) start with a 0 .
 * Hexadecimal numbers (used for memory locations or colors) start with 0x .
 
-*NOTE: In previous versions of Puppet, bare numbers were evaluated as strings. Best practice as of Puppet 3 was to quote all numbers to ensure they were evaluated as a String . This was preparation for Puppet 4, where unquoted numbers are the Numeric data type, and validation is performed on the value.
+*NOTE: In previous versions of Puppet, bare numbers were evaluated as strings. Best practice as of Puppet 3 was to quote all numbers to ensure they were evaluated as a String . This was preparation for Puppet 4, where unquoted numbers are the Numeric data type, and validation is performed on the value.*
 
 Any time an unquoted word starts with numbers, it will be validated as a Numeric type.
 
@@ -272,7 +272,8 @@ The client-reported value of whether noop was enabled in the configuration or on
 The environment requested by the client. When using a Puppet server, the server could override the environment selection. This value contains the requested value. If this value is blank, the production environment is used by default.  All of these facts can be found in the $facts hash.
 
 e.g.
-```puppet apply -e 'notice("blah ${facts['clientcert']}")'
+```
+puppet apply -e 'notice("blah ${facts['clientcert']}")'
 Notice: Scope(Class[main]): blah puppetagent1
 Notice: Compiled catalog for puppetagent1 in environment production in 0.06 seconds
 Notice: Applied catalog in 0.02 seconds
@@ -289,18 +290,18 @@ facter --json
 puppet facts --render-as json
 ```
 
-##Calling Functions in Manifests
+## Calling Functions in Manifests
 A function is executable code that may accept input parameters, and may output a return value. A function that returns a value can be used to provide a value to a variable:
 
     $zero_or_one = bool2num( $facts['is_virtual'] );
  
 The function can also be used in place of a value, or interpolated into a string:
 ```
-# md5() function provides the value for the message attribute
+md5() function provides the value for the message attribute
 notify { 'md5_hash':
    message => md5( $facts['fqdn'] )
 }
-# Include the MD5 hash in the result string
+Include the MD5 hash in the result string
 $result = "The MD5 hash for the node name is ${md5( $facts['fqdn'] )}"
 ```
 Functions can also take action without returning a value. Previous examples used the notice() function, which sends a message at notice log level but does not return a
@@ -351,7 +352,8 @@ Constant strings without variables in them should be surrounded by single quotes
 
 You can access specific items within an Array by using a 0-based array index within
 square brackets. Two indices can be specified to retrieve a range of items:
-```$first_item = $my_list[1]
+```
+$first_item = $my_list[1]
 $four_items = $my_list[3,6]
 ```
 
