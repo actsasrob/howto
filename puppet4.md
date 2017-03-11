@@ -46,5 +46,17 @@ sudo /opt/puppetlabs/bin/puppet config print |grep dir
 
 ## Writing Manifests
 
+A manifest is a file containing Puppet configuration language that describes how resources should be configured. The manifest is the closest thing to what one might consider a Puppet program. It uses resources to define a policy to be enforced on a node. It is therefore the base component for Puppet configuration policy, and a building block for complex Puppet modules.
 
 ## Writing
+
+Resources are the smallest building block of the Puppet configuration language. They
+represent a singular element that you wish to evaluate, create, or remove. Puppet
+comes with many built-in resource types.
+
+Example notify resouce:
+'''
+notify { 'greeting':
+   message => 'Hello, world!'
+}
+'''
