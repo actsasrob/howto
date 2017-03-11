@@ -1,0 +1,2262 @@
+# How to search for/install a module (Graphite in this example) using Puppet Forge:
+
+Puppet operates a service called the Puppet Forge (https://forge.puppet.com/), which serves as a repository for Puppet modules. A module nicely packages all the code and data Puppet needs to manage a given aspect in your infrastructure, which is especially helpful when you're dealing with a complex application like Graphite.
+
+The puppet module tool lets you search for modules directly from the command line. 
+puppet module search graphite
+
+For Puppet Enterprise, the default modulepath is /etc/puppetlabs/code/environments/production/modules.
+
+The graphite module includes Puppet code that defines a graphite class. In Puppet, a class is simply a named block of Puppet code that defines a set of associated system resources. A class might install a package, customize an associated configuration file for that package, and start a service provided by that package. These are related and interdependent processes, so it makes sense to organize them into a single configurable unit: a class.
+While a module can include many classes, it will generally have a main class that shares the name of the module. This main class will often handle the basic installation and configuration of the primary component the module is designed to manage.
+The graphite class contains the instructions Puppet needs to set up Graphite, but you still need to tell Puppet where and how you want it to apply the class across your infrastructure. This process of matching classes to nodes is called classification.
+
+NOTE: Puppet Approved modules adhere to a set of Puppet specifications for style, documentation, and semantic versioning, along with other best practices standards. Puppet Supported modules are rigorously tested for compatibility with Puppet Enterprise and are fully covered by Puppet's support team.
+
+# Install a puppet module:
+puppet module install dwerder-graphite -v 5.16.1
+
+When you ran the puppet module command, Puppet retrieved the graphite module from Forge and placed it in the Puppet master's modulepath. The modulepath is where Puppet will look to find Puppet classes and other files and resources made available by any modules you download or create. For Puppet Enterprise, the default modulepath is /etc/puppetlabs/code/environments/production/modules.
+
+
+# Use the PE console to define a node group, adding the Learning VM to the group, and classifying the group with the graphite class.
+Of course, you could use a command like ifconfig to find this, but let's do it the Puppet way. Puppet uses a tool called facter to collect facts about a system and make them available at catalog compilation. This is how it knows, for example, whether it's on Ubuntu and needs to use apt-get or CentOS and needs yum. You'll learn more about facts and conditionals in Puppet later. For now, we can use facter in the command-line to determine the Learning VM's IP address.
+facter ipaddress
+
+Open a web browser on your host machine and go to https://<IPADDRESS>, where <IPADDRESS> is the Learning VM's IP address. (Be sure to include the s in https!)
+When prompted, use the following credentials to log in:
+
+    username: admin
+
+    password: puppetlabs
+
+
+# Create a node group
+
+Now that you have access to the PE console, we'll walk you through the steps to classify the "learning.puppetlabs.vm" node (i.e. the Learning VM) with the graphite class.
+First, create a Learning VM node group. Node groups allow you to segment all the nodes in your infrastructure into separately configurable groups based on the node's certname and all information collected by the facter tool.
+Click on Classification in the console navigation bar. It may take a moment to load.
+
+# Add a class
+
+When you installed the dwerder-graphite module from the forge, it made the graphite class available in the console.
+Under the Classes tab in the interface for the Learning VM node group, find the Class name text box. When you click in 1
+the classes textbox and begin typing, the graphite class should autofill. If it does not, click the Refresh button near the top right of the classes interface and wait a moment before trying again. 
+
+Before you apply the class, there are a few parameters you'll want to set.
+We already have an Apache server configured to our liking on the Learning VM, so we can tell the graphite class it doesn't need to bother setting up its own server.
+There are also some compatibility issues with the latest Django version. The author of this graphite module has made it easy to get around this problem by picking our own compatible Django version to use. (Keep this in mind when you start writing your own modules!)
+
+Set the parameters, as follows:
+
+    gr_web_server = none
+    gr_django_pkg = django
+    gr_django_provider = pip
+    gr_django_ver = "1.5"
+
+Note that the gr_django_ver parameter takes a string, not float value, so it must be wrapped in quotes for Puppet to parse it correctly.
+Double check that you have clicked the Add parameter button for all of your parameters, then click the Commit 5 changes button in the bottom right of the console window to commit your changes.
+
+# Run Puppet
+
+Now that you have classified the learning.puppetlabs.vm node with the graphite class, Puppet knows how the system should be configured, but it won't make any changes until a Puppet run occurs.
+By default, the Puppet agent daemon runs in the background on all nodes you manage with Puppet. Every 30 minutes, the Puppet agent daemon requests a catalog from the Puppet master. The Puppet master parses all the classes applied to that node, builds the catalog to describe how the node is supposed to be configured, and returns this catalog to the node's Puppet agent. The agent then applies any changes necessary to bring the node in line with the state described by the catalog.
+
+To avoid surprises, however, we've disabled these scheduled runs on the Learning VM. Instead, we'll be using the puppet agent tool to trigger runs manually.
+As you're working through this Quest Guide, keep in mind that the Learning VM is running both a Puppet master and a Puppet agent. This is a bit different than what you'd see in a typical architecture, where a single Puppet master would serve a collection of Puppet agent nodes. The Puppet master is where you keep all your Puppet code. Earlier when you used the puppet module tool to install the graphite module, that was a task for the Puppet master. When you want to manually trigger a Puppet run with the puppet agent tool, that's a command you would use on an agent node, not the master.
+So put on your agent hat and trigger a Puppet run:
+
+puppet agent --test
+
+Graphite is a complex piece of software with many dependencies, so this may take a while to run. After a brief delay, you will see text scroll by in your terminal indicating that Puppet has made all the specified changes to the Learning VM.
+
+You can also check out the Graphite console running on port 90. (http://<IPADDRESS>:90)
+We've selected a few parameters as an example. Paste the following path after the Graphite console URL to try it out:
+/render/?width=586&height=308&_salt=1430506380.148&from=-30minutes&fontItalic=false&fontName=Courier&target=alias(carbon.agents.learning_puppetlabs_vm-a.cpuUsage%2C"CPU")&target=alias(secondYAxis(carbon.agents.learning_puppetlabs_vm-a.memUsage)%2C"Memory")&majorGridLineColor=C0C0C0&minorGridLineColor=C0C0C0
+Note that Graphite has only been running for a few minutes, so it may not yet have much data to chart. If you wait a minute and refresh the page in your browser, you will see the graph update with new data.
+e.g. http://192.168.1.12:90/render/?width=586&height=308&_salt=1430506380.148&from=-30minutes&fontItalic=false&fontName=Courier&target=alias(carbon.agents.learning_puppetlabs_vm-a.cpuUsage%2C%22CPU%22)&target=alias(secondYAxis(carbon.agents.learning_puppetlabs_vm-a.memUsage)%2C%22Memory%22)&majorGridLineColor=C0C0C0&minorGridLineColor=C0C0C0
+
+
+
+Resources Quest
+Quest objectives
+
+    Understand how resources on the system are modeled in Puppet's Domain Specific Language (DSL).
+    Use Puppet to inspect resources on your system.
+    Use the Puppet Apply tool to make changes to resources on your system.
+    Learn about the Resource Abstraction Layer (RAL).
+
+Before you go on to learn the more complex aspects of Puppet, you should start with a solid understanding of resources, the fundamental building blocks of Puppet's declarative modeling syntax.
+In this quest, you will learn what resources are and how to inspect and modify them with Puppet command-line tools.
+
+Taking common tasks and abstracting away the complexities and pitfalls doesn't just make those tasks themselves easier, it gives you the stable, repeatable, and testable foundation you need to build something new.
+For Puppet, this foundation is a system called the resource abstraction layer. Puppet interprets any aspect of your system configuration you want to manage (users, files, services, and packages, to give some common examples) as a unit called a resource. Puppet knows how to translate back and forth between the resource syntax and the 'native' tools of the system it's running on. Ask Puppet about a user, for example, and it can represent all the information about that user as a resource of the user type. Of course, it's more useful to work in the opposite direction. Describe how you want a user resource to look, and Puppet can go out and make all the changes on the system to actually create or modify a user to match that description.
+The block of code that describes a resource is called a resource declaration. These resource declarations are written in Puppet code, a Domain Specific Language (DSL) based on Ruby.
+
+
+Puppet's Domain Specific Language
+
+A good understanding of the Puppet DSL is a key first step in learning how to use Puppet effectively. While tools like the PE console give you quite a bit of power to make configuration changes at a level above the code implementation, it always helps to have a solid understanding of the Puppet code under the hood.
+Puppet's DSL is a declarative language rather than an imperative one. This means that instead of defining a process or set of commands, Puppet code describes (or declares) only the desired end state. With this desired state described, Puppet relies on built-in providers to handle implementation.
+One of the points where there is a nice carry over from Ruby is the hash syntax. It provides a clean way to format this kind of declarative model, and is the basis for the resource declarations
+
+As we mentioned above, a key feature of Puppet's declarative model is that it goes both ways; that is, you can inspect the current state of any existing resource in the same syntax you would use to declare a desired state.
+
+Use the puppet resource tool to take a look at your root user account. The syntax of the command is: puppet resource \ \.
+
+puppet resource user root 
+
+This resource declaration syntax is composed of three main components:
+
+    Type
+    Title
+    Attribute value pairs
+
+Resource Type
+
+You'll get used to the resource syntax as you use it, but for this first look we'll go through the example point by point.
+
+We'll start with the first line first:
+
+  user { 'root':
+    ...
+  }
+
+The word user, right before the curly brace, is the resource type. The type represents the kind of thing that the resource describes. It tells Puppet how to interpret the rest of the resource declaration and what kind of providers to use for managing the underlying system details.
+
+Puppet includes a number of built-in resource types, which allow you to manage aspects of a system. Below are some of the core resource types you'll encounter most often:
+
+    user A user
+    group A user group
+    file A specific file
+    package A software package
+    service A running service
+    cron A scheduled cron job
+    exec An external command
+    host A host entry
+
+If you are curious to learn about all of the built-in resources types available, see the Type Reference Document or try the command puppet describe --list.
+
+Resource Title
+
+Take another look at the first line of the resource declaration.
+
+  user { 'root':
+    ...
+  }
+
+The single quoted word 'root' just before the colon is the resource title. Puppet uses the resource title as its own internal unique identifier for that resource. This means that no two resources of the same type can have the same title.
+
+In our example, the resource title, 'root', is also the name of the user we're inspecting with the puppet resource command. Generally, a resource title will match the name of the thing on the system that the resource is managing. A package resource will usually be titled with the name of the managed package, for example, and a file resource will be titled with the full path of the file.
+
+Keep in mind, however, that when you're creating your own resources, you can set these values explicitly in the body of a resource declaration instead of letting them default to the resource title. For example, as long as you explicitly tell Puppet that a user resource's name is 'root', you can actually give the resource any title you like. ('superuser', maybe, or even 'spaghetti') Just because you can do this, though, doesn't mean it's generally a good idea! Unless you have a good reason to do otherwise, letting Puppet do its defaulting magic with titles will save you typing and make your Puppet code more readable.
+
+Attribute Value Pairs
+Now that we've covered the type and title, take a look at the body of the resource declaration.
+
+user { 'root':
+  ensure           => present,
+  comment          => 'root',
+  gid              => '0',
+  home             => '/root',
+  password         => '$1$jrm5tnjw$h8JJ9mCZLmJvIxvDLjw1M/',
+  password_max_age => '99999',
+  password_min_age => '0',
+  shell            => '/bin/bash',
+  uid              => '0',
+}
+
+After the colon in that first line comes a hash of attributes and their corresponding values. Each line consists of an attribute name, a => (pronounced 'hash rocket'), a value, and a final comma. For instance, the attribute value pair home => '/root', indicates that root's home is set to the directory /root.
+
+So to bring this all together, a resource declaration will match the following pattern:
+
+type {'title':
+    attribute => 'value',
+}
+
+Note that the comma at the end of the final attribute value pair isn't required by the parser, but it is best practice to include it for the sake of consistency. Leave it out, and you'll inevitably forget to insert it when you add another attribute value pair on the following line!
+
+Of course, the real meat of a resource is in these attribute value pairs. You can't do much with a resource without a good understanding of its attributes. The puppet describe command makes this kind of information easily available from the command line.
+
+Use the 'puppet describe' tool to get a description of the user type, including a list of its parameters.
+
+puppet describe user | less
+
+(You can use the jk key mapping or the arrow keys to scroll, and q to exit less.)
+
+
+Puppet Apply
+
+You can use the puppet apply tool with the -e (--execute) flag to execute a bit of Puppet code. Though puppet apply -e is limited to one-off changes, it's a great tool for tests and exploration.
+
+In this task, you'll create a new user called galatea. Puppet uses reasonable defaults for unspecified user attributes, so all you need to do to create a new user is set the ensure attribute to present. This present value tells Puppet to check if the resource exists on the system, and to create the specified resource if it does not.
+
+puppet apply -e "user { 'galatea': ensure => present, }"
+
+Use the puppet resource tool to take a look at user galatea. Type the following command:
+
+puppet resource user galatea
+
+Notice that while the root user had a comment attribute, Puppet hasn't created one for your new user. As you may have noticed looking over the puppet describe entry for the user type, this comment is generally the full name of the account's owner.
+
+Though you could add a comment with the puppet apply -e, you'd have to cram the whole resource declaration into one line, and you wouldn't be able to see the current state of the resource before making your changes. Luckily, the puppet resource tool can also take a -e flag. This will drop the current state of a resource into a text editor where you can make any changes you like.
+
+Let's give it a try:
+
+puppet resource -e user galatea
+
+You should see the same output for this resource as before, but this time it will be opened in a text editor (Vim, by default). To add a comment attribute, insert a new line to the resource's list of attribute value pairs. (If you're not used to Vim, note that you must use the i command to enter insert mode before you can insert text.)
+
+comment => 'Galatea of Cyprus',
+
+
+Quest: Manifests and classes
+Quest objectives
+
+    Understand the concept of a Puppet manifest
+    Construct and apply manifests to manage resources
+    Understand what a class means in Puppet's Language
+    Learn how to use a class definition
+    Understand the difference between defining and declaring a class
+
+In this quest, we're going to cover two key Puppet concepts that will help you organize and implement your resource declarations: classes and manifests. Proper use of classes and manifests is the first step towards writing testable and reusable Puppet code.
+
+
+Manifests
+
+At its simplest, a manifest is nothing more than some puppet code saved to a file with the .pp extension. It's the same stuff you saw using the puppet resource tool and applied with the puppet apply tool. Easy enough, but it's where you put a manifest and what you put in it that really matter.
+
+Much of this organizational structure, both in terms of a manifest's content and its location on the puppet master's filesystem, is related to Puppet classes. 
+
+Classes
+
+In Puppet's DSL a class is a named block of Puppet code. The class is the next level of abstraction above a resource. A class declares a set of resources related to a single system component.
+
+We'll cover class parameters in depth in a later quest. For now, we'll focus on how the abstraction provided by classes allows you to manage complex sets of resources in terms of a single function they serve.
+
+Using a Puppet class requires two steps. First, you must define it by writing a class definition and saving it to a manifest file. Puppet will parse this manifest and remember your class definition. The class can then be declared to apply the resource declarations it contains to a node in your infrastructure.
+
+There are several ways to tell Puppet where and how to apply classes to nodes. You already saw the PE Console's node classifier in the Power of Puppet quest, and we'll discuss other methods of node classification in a later quest. For now we'll show you how to write class definitions and use test manifests to declare these classes locally.
+
+One more note on the topic of classes: In Puppet, classes are singleton, which means that a class can only be declared once on a given node. In this sense, Puppet's classes are different than the kind of classes you may have encountered in object-oriented programming, which are often instantiated multiple times. Declaring a class multiple times could give Puppet conflicting instructions for how to manage resources on a system.
+
+We've already prepared a cowsayings module directory in Puppet's modulepath, and included two subdirectories: manifests and examples. Before getting started writing manifests, change directories to save yourself some typing:
+
+cd /etc/puppetlabs/code/environments/production/modules
+
+Cowsay
+
+Let's start with cowsay. To use the cowsay command, you need to have the cowsay package installed. You can use a package resource to handle this installation, but you don't want to put that resource declaration just anywhere.
+
+To keep things tidy, we'll create a cowsay.pp manifest, and within that manifest we'll define a class that can manage the cowsay package.
+
+First, create a simple module structure to contain your manifests. (We'll cover this structure in more depth in the next quest.)
+mkdir -p cowsayings/{manifests,examples}
+
+Use vim to create a cowsay.pp manifest:
+vim cowsayings/manifests/cowsay.pp
+
+Enter the following class definition, then save and exit (:wq):
+
+class cowsayings::cowsay {
+  package { 'cowsay':
+    ensure   => present,
+    provider => 'gem',
+  }
+}
+
+Now that you're working with manifests, you can validate your code before you apply it. Use the puppet parser tool to check the syntax of your new manifest:
+
+puppet parser validate cowsayings/manifests/cowsay.pp
+
+The parser will return nothing if there are no errors. If it does detect a syntax error, open the file again and fix the problem before continuing.
+
+If you try to directly apply your new manifest, nothing on the system will change. (Give it a shot if you like.) This is because you have defined a cowsay class, but haven't declared it anywhere. Puppet knows that the cowsay class contains a resource declaration for the cowsay package, but hasn't yet been told to do anything with it.
+
+If you were going to apply this code to your production infrastructure, you would use the console's node classifier to classify any nodes that needed cowsay installed with the cowsay with your cowsay class. As you're working on a module, however, it's useful to apply a class directly. By convention, these test manifests are kept in an examples directory. (You may also sometimes see these manifests in the tests directory.)
+
+To actually declare the class, create a cowsay.pp test in the examples directory.
+vim cowsayings/examples/cowsay.pp
+
+In this manifest, declare the cowsay class with the include keyword.
+include cowsayings::cowsay
+
+Save and exit.
+
+Before applying any changes to your system, it's always a good idea to use the --noop flag to do a 'dry run' of the Puppet agent. This will compile the catalog and notify you of the changes that Puppet would have made without actually applying any of those changes to your system.
+
+puppet apply --noop cowsayings/examples/cowsay.pp
+
+If your dry run looks good, go ahead and run puppet apply again without the --noop flag. If everything went according to plan, the cowsay package is now installed on the Learning VM. Give it a try!
+
+cowsay Puppet is awesome!
+
+Fortune
+
+But this module isn't just about cowsay; it's about cow sayings. With the fortune package, you can provide your cow with a whole database of wisdom.
+
+Create a new manifest for your fortune class definition:
+vim cowsayings/manifests/fortune.pp
+
+Write your class definition here:
+
+class cowsayings::fortune {
+  package { 'fortune-mod':
+    ensure => present,
+  }
+}
+
+Again, you'll want to validate your new manifests syntax with the puppet parser validate command. When everything checks out, you're ready to make your test manifest:
+vim cowsayings/examples/fortune.pp
+
+As before, use include to declare your cowsayings::fortune class. 
+include cowsayings::fortune
+
+Save and exit.
+
+puppet apply --noop cowsayings/examples/fortune.pp
+
+Then apply it for real:
+puppet apply cowsayings/examples/fortune.pp
+
+Now that you have both packages installed, you can use them together. Try piping the output of the fortune command to cowsay:
+
+fortune | cowsay
+
+
+
+Main class: init.pp
+
+Often a module will gather several classes that work together into a single class to let you declare everything at once.
+
+Before creating the main class for cowsayings, however, a note on scope. You may have noticed that the classes you wrote for cowsay and fortune were both prepended by cowsayings::. When you declare a class, this scope syntax tells Puppet where to find that class; in this case, it's in the cowsayings module.
+
+For the main class of a module, things are a little different. The main class shares the name of the module itself, but instead of following the pattern of naming the manifest for the class it contains, Puppet recognizes the special file name init.pp for the manifest that will contain a module's main class.
+
+So to contain your main cowsayings class, create an init.pp manifest in the cowsayings/manifests directory:
+
+vim cowsayings/manifests/init.pp
+
+Here, you'll define the cowsayings class. Within it, use the same include syntax you used in your tests to declare the cowsayings::cowsay and cowsayings::fortune classes.
+
+class cowsayings {
+  include cowsayings::cowsay
+  include cowsayings::fortune
+}
+
+Save the manifest, and check your syntax with the puppet parser tool.
+
+puppet parser validate cowsayings/manifests/init.pp
+
+At this point, you already have both packages you want installed on the Learning VM. Applying the changes again wouldn't actually do anything. For the sake of testing, you can use the puppet resource tool to delete them so you can try out the functionality of your new cowsayings class:
+
+puppet resource package fortune-mod ensure=absent
+puppet resource package cowsay ensure=absent provider=gem
+
+Next, create a test for the init.pp manifest in the examples directory.
+vim cowsayings/examples/init.pp
+
+Here, just declare the cowsayings class:
+include cowsayings
+
+Good. Now that the packages are gone, do a --noop first, then apply your cowsayings/examples/init.pp test.
+puppet parser validate cowsayings/examples/init.pp
+puppet apply --noop cowsayings/examples/init.pp
+puppet apply cowsayings/examples/init.pp
+
+We covered a lot in this quest. We promised manifests and classes, but you got a little taste of how Puppet modules work as well.
+
+A class is a collection of related resources and other classes which, once defined, can be declared as a single unit. Puppet classes are also singleton, which means that unlike classes in object oriented programming, a Puppet class can only be declared a single time on a given node.
+
+A manifest is a file containing Puppet code, and appended with the .pp extension. In this quest, we used manifests in the ./manifests directory each to define a single class, and used a corresponding test manifest in the ./examples directory to declare each of those classes.
+
+There are also a few details about classes and manifests we haven't gotten to just yet. As we mentioned in the Power of Puppet quest, for example, classes can also be declared with parameters to customize their functionality.
+
+
+Modules Quest
+Quest objectives
+
+    Understand the purpose of Puppet modules
+    Learn the module directory structure
+    Write and test a simple module
+
+In short, a Puppet module is a self-contained bundle of all the Puppet code and other data needed to manage some aspect of your configuration. In this quest, we'll go over the purpose and structure of Puppet modules, before showing you how to create your own.
+
+Modules allow you to organize your Puppet code into units that are testable, reusable, and portable, in short, modular. This means that instead of writing Puppet code from scratch for every configuration you need, you can mix and match solutions from a few well-written modules. And because these modules are separate and self-contained, they're much easier to test, maintain, and share than a collection of one-off solutions.
+
+At their root, modules are little more than a structure of directories and files that follow Puppet's naming conventions. The module file structure gives Puppet a consistent way to locate whatever classes, files, templates, plugins, and binaries are required to fulfill the function of the module.
+
+Modules and the module directory structure also provide an important way to manage scope within Puppet. Keeping everything nicely tucked away in its own module means you have to worry much less about name collisions and confusion.
+
+Finally, because modules are standardized and self-contained, they're easy to share. Puppet Labs hosts a free service called the Forge where you can find a wide array of modules developed and maintained by others.
+
+All modules accessible by your Puppet Master are located in the directories specified by the modulepath variable in Puppet's configuration file.
+
+You can find the modulepath on your puppet master by running the puppet master command with the --configprint flag and the modulepath argument:
+puppet master --configprint modulepath
+
+A module consists of a pre-defined structure of directories that help Puppet reliably locate the module's contents.
+
+Use the the puppet module list command to see what modules are already installed. You'll probably recognize some familiar names from previous quests.
+
+To get a clear picture of the directory structure of the modules here, you can use a couple of flags with the tree command to limit the output to directories, and limit the depth to two directories.
+
+tree -L 2 -d /etc/puppetlabs/code/environments/production/modules/
+
+/etc/puppetlabs/code/environments/production/modules/
+├── cowsayings
+│   ├── manifests
+│   └── examples
+└── graphite
+    ├── manifests
+    ├── spec
+    └── templates
+    
+Each of the standardized subdirectory names you see tells Puppet users and Puppet itself where to find each of the various components that come together to make a complete module.
+
+You've already had a chance to play with the user and package resources in previous quests, so this time we'll focus on the file resource type. The file resource type is also a nice example for this quest because Puppet uses some URI abstraction based on the module structure to locate the sources for files.
+
+The module you'll make in this quest will manage some settings for Vim, the text editor you've been using to write your Puppet code. Because the settings for services and applications are often set in a configuration file, the file resource type can be very handy for managing these settings.
+
+Change your working directory to the modulepath if you're not already there.
+
+cd /etc/puppetlabs/code/environments/production/modules
+
+The top directory will be the name you want for the module. In this case, let's call it "vimrc." Use the mkdir command to create your module directory:
+
+mkdir vimrc
+
+Now you need three more directories, one for manifests, one for examples, and one for files.
+
+mkdir vimrc/{manifests,examples,files}
+
+If you use the tree vimrc command to take a look at your new module, you should now see a structure like this:
+
+vimrc
+├── files
+├── manifests
+└── examples
+
+# Managing files
+
+We've already set up the Learning VM with some custom settings for Vim. Instead of starting from scratch, you can copy the existing .vimrc file into the files directory of your new module. Any file in the files directory of a module in the Puppet master's modulepath will be available to client nodes through Puppet's built-in fileserver.
+
+Copy the existing .vimrc file to your module's files directory:
+
+cp ~/.vimrc vimrc/files/vimrc
+
+Once you've copied the file, open so you can make an addition.
+
+vim vimrc/files/vimrc
+
+We'll keep things simple. By default, line numbering is disabled. Add the following line to the end of the file to tell Vim to turn on line numbering.
+
+set number
+
+Save and exit.
+
+
+Now that your source file is ready, you need to write a manifest to tell puppet what to do with it.
+
+Remember, the manifest that includes the main class for a module is always called init.pp. Create the init.pp manifest in your module's manifests directory.
+
+vim vimrc/manifests/init.pp
+
+The Puppet code you put in here will be pretty simple. You need to define a class vimrc, and within it, make a file resource declaration to tell Puppet to take the vimrc/files/vimrc file from your module and use Puppet's file server to push it out to the specified location.
+
+In this case, the .vimrc file that defines your Vim settings lives in the /root directory. This is the file you want Puppet to manage, so its full path (i.e. /root/.vimrc) will be the title of the file resource you're declaring.
+
+This resource declaration will then need two attribute value pairs.
+
+First, as with the other resource types you've encountered, ensure => present, would tell Puppet to ensure that the entity described by the resource exists on the system. However, because Linux uses files for both "normal" files and directories, we'll want to use the more explicit ensure => file, instead.
+
+Second, the source attribute tells Puppet what the managed file should actually contain. The value for the source attribute should be the URI of the source file.
+
+All Puppet file server URIs are structured as follows:
+
+puppet://{server hostname (optional)}/{mount point}/{remainder of path}
+
+However, there's some URI abstraction magic built in to Puppet that makes these URIs more concise.
+
+First, the optional server hostname is nearly always omitted, as it defaults to the hostname of the Puppet master. Unless you need to specify a file server other than the Puppet master, your file URIs should begin with a triple forward slash, like so: puppet:///.
+
+Second, nearly all file serving in Puppet is done through modules. Puppet provides a couple of shortcuts to make accessing files in modules simpler. First, Puppet treats modules as a special mount point that will point to the Puppet master's modulepath. So the first part of the URI will generally look like puppet:///modules/
+
+Finally, because all files to be served from a module must be kept in the module's files directory, this directory is implicit and is left out of the URI.
+
+So while the full path to the vimrc source file is /etc/puppetlabs/code/environments/production/modules/vimrc/files/vimrc, Puppet's URI abstraction shortens it to /modules/vimrc/vimrc. Combined with the implicit hostname, then, the attribute value pair for the source URI is:
+
+source => 'puppet:///modules/vimrc/vimrc',
+
+Putting this all together, your init.pp manifest should contain the following:
+
+class vimrc {
+  file { '/root/.vimrc':
+    ensure => file,
+    source => 'puppet:///modules/vimrc/vimrc',
+  }
+}
+
+Save the manifest, and use the puppet parser tool to validate your syntax:
+
+puppet parser validate vimrc/manifests/init.pp
+
+Test your module
+
+Remember, this manifest defines the vimrc class, but you'll need to declare it for it to have an effect. That is, we've described what the vimrc class is, but you haven't told Puppet to actually do anything with it.
+
+To test the vimrc class, create a manifest called init.pp in the vimrc/examples directory.
+
+vim vimrc/examples/init.pp
+
+All you'll do here is declare the vimrc class with the include directive.
+
+include vimrc
+
+Apply the new manifest with the --noop flag. If everything looks good, drop the --noop and apply it for real.
+
+puppet apply --noop vimrc/examples/init.pp
+
+puppet apply vimrc/examples/init.pp
+
+You'll see something like the following:
+
+Notice: /Stage[main]/Vimrc/File[/root/.vimrc]/content: content changed
+'{md5}99430edcb284f9e83f4de1faa7ab85c8' to
+'{md5}f685bf9bc0c197f148f06704373dfbe5'
+
+When you tell Puppet to manage a file, it compares the md5 hash of the target file against that of the specified source file to check if any changes need to be made. Because the hashes did not match, Puppet knew that the target file did not match the desired state, and changed it to match the source file you had specified.
+
+To see that your line numbering settings have been applied, open a file with Vim. You should see the number of each line listed to the left.
+
+
+NTP Quest
+Quest objectives
+
+    Use the puppet module tool to find and install modules on the Puppet Forge
+    Learn how you can use the site.pp manifest to classify nodes.
+    Use class parameters to adjust variables in a class as you declare it.
+
+When you use a publicly available module, you're often getting code that has already been tested and deployed across hundreds or thousands of other users' infrastructures.
+
+Furthermore, using Puppet Supported and Puppet Approved modules adds another layer of validation and reliability.
+
+Keep in mind, though, that no matter whose code you're using, relying on external checks is no substitute for your own thorough review and testing of anything you're putting into production!
+
+In this quest, you'll learn how you can use an existing module from the Puppet Forge to manage an important service on your machine: NTP.
+
+Package/File/Service
+
+We'll show you how to install and deploy the NTP module.
+
+ first, take a look at the current state of your system. This way, you'll be able to keep track of what Puppet changes and understand why the NTP module does what it does.
+
+To get the NTP service running, there are three key resources that Puppet will manage. The puppet resource tool can show you the current state of each of these resources.
+
+First, check the state of the NTP package:
+
+puppet resource package ntp
+
+check the NTP configuration file:
+
+puppet resource file /etc/ntp.conf
+
+finally, see if the Network Time Protocol Daemon (NTPD) service is running:
+
+puppet resource service ntpd
+
+You'll see that the NTP package is purged, that the configuration file is absent, and that the ntpd service is 'stopped'.
+
+As you continue to work with Puppet, you'll find that this package/file/service pattern is very common. These three resource types correspond to the common sequence of installing a package, customizing that package's functionality with configuration files, and starting the service provided by that package.
+
+The package/file/service pattern also describes the typical relationships of dependency among these three resources: a well-written class will define these relationships, telling Puppet to restart the service if the configuration file has been modified, and re-create the configuration file when the package is installed or updated. You'll be working with an existing module in this quest, so these dependencies are already taken care of; we'll get into the specifics of how they can be managed in a later quest.
+
+Installation
+
+Before you classify the Learning VM with the NTP class, you'll need to install the NTP module from the Forge. While the module itself is called ntp, recall that modules in the Forge are prefixed by the account name of the associated user. So to get the Puppet Labs NTP module, you'll specify puppetlabs-ntp. When you look at the module saved to the modulepath on your Puppet master, however, it will be named ntp. Keep this in mind, as trying to install multiple modules of the same name can lead to conflicts!
+
+Use the Puppet module tool to install the Puppet Labs ntp module. (If you've already installed the modules from the cache, this task should already be marked as complete and you can skip this step.)
+
+puppet module install puppetlabs-ntp
+
+This command tells the Puppet module tool to fetch the module from the Puppet Forge and place it in Puppet's modulepath: /etc/puppetlabs/code/environments/production/modules.
+
+Classification with the site.pp manifest
+
+Now that the NTP module is installed, all the included classes are available to use in node classification.
+
+In the Power of Puppet quest, you learned how to classify a node with the PE Console. In this quest, we introduce another method of node classification: the site.pp manifest.
+
+site.pp is the first manifest the Puppet agent checks when it connects to the master. It defines global settings and resource defaults that will apply to all nodes in your infrastructure. It is also where you will put your node definitions (sometimes called node statements).
+
+A node definition is the code-defined equivalent of the node group you saw in the Power of Puppet quest.
+
+node 'learning.puppetlabs.vm' {
+  ...
+}
+
+Because it's more amenable to monitoring with the Learning VM quest tool, we'll be primarily using this site.pp method of classification in this Quest Guide. What you will learn about node definitions and class declarations applies to whatever methods of classification you decide to use later, including the PE Console node classifier.
+
+Open the site.pp manifest in your text editor.
+
+vim /etc/puppetlabs/code/environments/production/manifests/site.pp
+
+Skip to the bottom of the file. (You can use the vim shortcut G)
+
+You'll see a default node definition. This is a special node definition that Puppet will apply to any node that's not specifically included in any other node definition.
+
+We only want our changes to apply to the Learning VM, however, so we'll put our ntp class declaration in a new learning.puppetlabs.vm node block.
+
+
+node 'learning.puppetlabs.vm' {
+  include ntp
+}
+
+Note that triggering a Puppet run with the puppet agent tool is useful for learning and testing, but that in a production environment you would want to let the Puppet agent run as scheduled, every 30 minutes, by default. Because you'll be running Puppet right after making changes to the site.pp manifest, Puppet may not have a chance to refresh its cache. If your changes to the site.pp manifest aren't reflected in a Puppet run triggered by the puppet agent -t command, try running the command again.
+
+Test the site.pp manifest with the puppet parser validate command, and trigger a Puppet run.
+
+puppet agent -t
+
+Once the Puppet run is complete, use the Puppet resource tool to inspect the ntpd service again. If the class has been successfully applied, you will see that the service is running.
+Syncing up
+
+To avoid disrupting processes that rely on consistent timing, the ntpd service works gradually. It adds or removes a few microseconds to each tick of the system clock so as to slowly bring it into synchronization with the NTP server.
+
+If you like, run the ntpstat command to check on the synchronization status. Don't worry about waiting to get synchronized. Because the Learning VM is virtual, its clock will probably be set based on the time it was created or last suspended. It's likely to be massively out of date with the time server, and it may take half an hour or more to get synchronized!
+
+puppet resource file /etc/ntp.conf
+puppet resource service ntpd  # Doesn't work!
+
+Class defaults and class parameters
+
+The ntp class includes default settings for most of its parameters. The include syntax you used let you concisely declare the class without modifying these defaults.
+
+One of these defaults, for instance, tells Puppet which time servers to include in the NTP configuration file. To see what servers were specified by default, you can check the configuration file directly. Enter the command:
+
+grep server /etc/ntp.conf
+
+You'll see a list of the default servers:
+
+server 0.centos.pool.ntp.org
+server 1.centos.pool.ntp.org
+server 2.centos.pool.ntp.org
+
+These ntp.org servers aren't actually time servers themselves; rather, they're access points that will pass you on to one of a pool of public timeservers. Most servers assigned through the ntp.org pool are provided by volunteers running NTP as an extra service on a mail or web server.
+
+While these work well enough, you'll get more accurate time and use less network resources if you pick public timeservers in your area.
+
+To manually specify which timeservers your NTPD service will poll, you'll need to override the default ntp.org pool servers set by the NTP module.
+
+This is where Puppet's class parameters come in. Class parameters provide a method to set variables in a class as it's declared. The syntax for parameterized classes looks similar to the syntax for resource declarations. Have a look at the following example:
+
+
+class { 'ntp':
+  servers => [
+    'nist-time-server.eoni.com',
+    'nist1-lv.ustiming.org',
+    'ntp-nist.ldsbc.edu'
+  ]
+}
+
+The servers parameter in our class declaration takes a list of servers as a value, not just one. This list of values, separated by commas (,) and wrapped in brackets ([]), is called an array. Arrays allow you assign a list of values to a single variable or attribute.
+
+In your site.pp, replace the include ntp line with a parameterized class declaration based on the example above. Use the servers from the example, or, if you know of a nearer timeserver, include that. You should always specify at least three timeservers for NTP to function reliably. You might, for instance, include two from the ntp.org pool and one known nearby timeserver.
+
+vim /etc/puppetlabs/code/environments/production/manifests/site.pp
+puppet parser validate /etc/puppetlabs/code/environments/production/manifests/site.pp
+puppet agent -t
+
+Once you've made your changes to the site.pp manifest and used the puppet parser tool to validate your syntax, use the puppet agent tool to trigger a Puppet run.
+
+You will see in the output that Puppet has changed the /etc/ntp.conf file and triggered a refresh of the ntpd service.
+
+
+MySQL Quest
+
+Quest Objectives
+
+    Install and configure a MySQL server.
+    Add a MySQL user, add a database, and grant permissions.
+
+The module lets you install and configure both server and client MySQL instances, and extends Puppet's standard resource types to let you manage MySQL users, grants, and databases with Puppet's standard resource syntax.
+
+Server install
+
+Before getting started configuring your MySQL server installation, fetch the puppetlabs-mysql module from the Puppet Forge with the puppet module tool. 
+
+puppet module install puppetlabs-mysql
+
+With this module installed in the Puppet master's module path, all the included classes are available to classify nodes.
+
+Now we'll edit the site.pp to classify the Learning VM with the MySQL server class.
+
+vim /etc/puppetlabs/code/environments/production/manifests/site.pp
+
+If you completed the NTP quest, you will already have a node declaration for the learning.puppetlabs.vm certname. If not, create it now:
+
+Within that node block, you can declare your ::mysql::server class and set its parameters. For this example, we'll specify a root password and set the server's max connections to '1024'. (You may notice that the formatting in vim is a bit funky when typing or pasting nested hashes. You can disable this formatting with the :set paste command in vim.)
+
+node 'learning.puppetlabs.vm' {
+  class { '::mysql::server':
+    root_password    => 'strongpassword',
+    override_options => {
+      'mysqld' => { 'max_connections' => '1024' }
+    },
+  }
+}
+
+Notice that in addition to standard parameters like the root_password, the class takes a override_options as a hash, which you can use to address any configuration options you would normally set in the /etc/my.cnf file. Using a hash lets you manage these settings without requiring each to be written into the class as a separate parameter. The structure of the override_options hash is analogous to the [section], var_name = value syntax of a my.cnf file.
+
+Use the puppet parser validate tool to check your syntax, then trigger a puppet run:
+
+puppet agent -t
+
+If you want to check out your new database, you can connect to the MySQL monitor with the mysql command, and exit with the \q command.
+
+To see the result of the 'max_connections' override option you set, use less to view the /etc/my.cnf.d/server.cnf file:
+
+less /etc/my.cnf.d/server.cnf
+
+And you'll see that Puppet translated the hash into appropriate syntax for the MySQL configuration file:
+
+[mysqld]
+...
+max_connections = 1024
+
+
+Scope
+
+It was easy enough to use Puppet to install and manage a MySQL server. The puppetlabs-mysql module also includes a bunch of classes that help you manage other aspects of your MySQL deployment.
+
+These classes are organized within the module directory structure in a way that matches Puppet's scope syntax. Scope helps to organize classes, telling Puppet where to look within the module directory structure to find each class. It also separates namespaces within the module and your Puppet manifests, preventing conflicts between variables or classes with the same name.
+
+Take a look at the directories and manifests in the MySQL module. Use the tree command with a filter to include only .pp manifest files:
+
+tree -P "*.pp" /etc/puppetlabs/code/environments/production/modules/mysql/manifests/ 
+
+You'll see something like the following:
+
+/etc/puppetlabs/code/environments/production/modules/mysql/manifests/
+├── backup.pp
+├── bindings
+│   ├── java.pp
+│   ├── perl.pp
+│   ├── php.pp
+│   ├── python.pp
+│   └── ruby.pp
+├── bindings.pp
+├── server
+│   ├── account_security.pp
+...
+
+Notice the server.pp manifest in the top level of the mysql/manifests directory.
+
+You were able to declare this class as mysql::server. Based on this scoped class name, Puppet knows to find the class definition in a manifest called server.pp in the manifest directory of the MySQL module.
+
+So mysql::server corresponds to:
+
+/etc/puppetlabs/code/environments/production/modules/mysql/manifests/server.pp
+
+To take an example one level deeper, the mysql::server::account_security class corresponds to:
+
+/etc/puppetlabs/code/environments/production/modules/mysql/manifests/server/account_security.pp
+
+Account security
+
+For security reasons, you will generally want to remove the default users and the 'test' database from a new MySQL installation. The account_security class mentioned above does just this.
+
+Go back to your site.pp manifest and include the mysql::server::account_security class in the learning.puppetlabs.vm node. Remember, you don't need to pass any parameters to this class, so a simple include statement will work in place of a parameterized class declaration.
+
+node 'learning.puppetlabs.vm' {
+  include ::mysql::server::account_security
+  ...
+}
+
+Validate your site.pp
+
+puppet parser validate /etc/puppetlabs/code/environments/production/manifests/site.pp
+
+When it checks out, trigger a puppet run:
+
+puppet agent -t
+
+You will see notices indicating that the test database and two users have been removed:
+
+Notice:
+/Stage[main]/Mysql::Server::Account_security/Mysql_database[test]/ensure:
+removed
+Notice:
+/Stage[main]/Mysql::Server::Account_security/Mysql_user[@localhost]/ensure:
+removed
+Notice:
+/Stage[main]/Mysql::Server::Account_security/Mysql_user[root@127.0.0.1]/ensure:
+removed
+
+
+Types and providers
+
+The MySQL module includes some custom types and providers that let you manage some critical bits of MySQL as resources with the Puppet DSL just like you would with a system user or service.
+
+A type defines the interface for a resource: the set of properties you can use to define a desired state for the resource, and the parameters that don't directly map to things on the system, but tell Puppet how to manage the resource. Both properties and parameters appear in the resource declaration syntax as attribute value pairs.
+
+A provider is what does the heavy lifting to bring the system into line with the state defined by a resource declaration. Providers are implemented for a wide variety of supported operating systems. They are a key component of the Resource Abstraction Layer (RAL), translating the universal interface defined by the type into system-specific implementations.
+
+The MySQL module includes custom types and providers that make mysql_user, mysql_database, and mysql_grant available as resources.
+
+Database, user, grant:
+
+These custom resource types make it possible to manage a new database with a few lines of puppet code.
+
+Add the following resource declaration to your site.pp node definition. (Remember the :set paste command if you need it.)
+
+  mysql_database { 'lvm':
+      ensure  => present,
+      charset => 'utf8',
+  }
+
+Similarly, with a user, all you have to do is specify the name and host as the resource title, and set the ensure attribute to present. Enter the following in your node definition as well.
+
+  mysql_user { 'lvm_user@localhost':
+    ensure => present,
+  }
+
+Once you've added declarations for these three custom resources, use the puppet parser validate command on the site.pp manifest to check your syntax
+
+puppet parser validate /etc/puppetlabs/code/environments/production/manifests/site.pp
+
+When your code looks good, trigger a puppet run:
+
+puppet agent -t
+
+less /etc/puppetlabs/code/environments/production/modules/mysql/manifests/server/providers.pp 
+less /etc/puppetlabs/code/environments/production/modules/mysql/README.md
+ 
+ 
+ 
+Quest Variables and Parameters
+
+Quest objectives
+
+    Learn how to assign and evaluate variables in a manifest.
+    Use the string interpolation syntax to mix variables into strings.
+    Set variable values with class parameters.
+
+In this quest, we'll show you how to integrate variables into your classes and make those variables accessible to be set through parameters.
+
+To explore these concepts, you'll write a module to manage a static HTML website. First, you'll create a simple web class with file resource declarations to manage your website's HTML documents. By assigning repeated values like filepaths to variables, you will make your class more concise and easier to refactor later. Once this basic class structure is complete, you'll add parameters. This will let you set the value of your class's variables as you declare it.
+
+
+Variables
+
+In Puppet, variable names are prefixed with a $ (dollar sign), and a value is assigned with the = operator.
+
+Assigning a short string to a variable, for example, would look like this:
+
+$myvariable = 'look, a string!'
+
+Once you have defined a variable you can use it anywhere in your manifest you would have used the assigned value.
+
+The basics of variables will seem familiar if you know another scripting or programming language. However, there are a few caveats you should be aware of when using variables in Puppet:
+
+    Unlike resource declarations, variable assignments are parse-order dependent. This means that you must assign a variable in your manifest before you can use it.
+
+    If you try to use a variable that has not been defined, the Puppet parser won't complain. Instead, Puppet will treat the variable as having the special undef value. Though this may cause an error later in the compilation process, in some cases it will pass through and cause unexpected results.
+
+    You can only assign a variable once within a single scope. Once it's assigned, the value cannot be changed. The value of a Puppet variable may vary across different systems in your infrastructure, but not within them.
+
+
+Variable interpolation
+
+Variable interpolation lets you insert the value of a variable into a string. For instance, if you wanted Puppet to manage several files in the /var/www/quest directory, you could assign this directory path to a variable:
+
+$doc_root = '/var/www/quest'
+
+Once the variable is set, you can avoid repeating the same directory path by inserting the $doc_root variable into the beginning of any string.
+
+For example, you might use it in the title of a few file resource declarations:
+
+file { "${doc_root}/index.html":
+  ...
+}
+file { "${doc_root}/about.html":
+  ...
+}
+
+Notice the different variable syntax here. The variable name is wrapped in curly braces, and the whole thing is preceded by the $ (${var_name}).
+
+Also note that a string that includes an interpolated variable must be wrapped in double quotation marks ("..."), rather than the single quotation marks that surround an ordinary string. These double quotation marks tell Puppet to find and parse special syntax within the string, rather than interpreting it literally.
+
+Manage web content with variables
+
+First, you'll need to create the directory structure for your module.
+
+Make sure you're in the modules directory for Puppet's modulepath.
+
+cd /etc/puppetlabs/code/environments/production/modules/
+
+Now create an web directory and your manifests and examples directories:
+
+mkdir -p web/{manifests,examples}
+
+With this structure in place, you're ready to create your main manifest where you'll define the web class. Create the file with vim:
+
+vim web/manifests/init.pp
+
+And then add the following contents (remember to use :set paste in vim):
+
+class web {
+
+  $doc_root = '/var/www/quest'
+
+  $english = 'Hello world!'
+  $french  = 'Bonjour le monde!'
+
+  file { "${doc_root}/hello.html":
+    ensure  => file,
+    content => "<em>${english}</em>",
+  }
+
+  file { "${doc_root}/bonjour.html":
+    ensure  => file,
+    content => "<em>${french}</em>",
+  }
+
+}
+
+Note that if you wanted to make a change to the $doc_root directory, you'd only have to do this in one place. While there are more advanced forms of data separation in Puppet, the basic principle is the same: The more distinct your code is from the underlying data, the more reusable it is, and the less difficult it will be to refactor when you have to make changes later.
+
+Once you've validated your manifest with the puppet parser tool, you still need to create a test for your manifest with an include statement for the web class you created (you covered testing in the "Modules" quest).
+
+Create a web/examples/init.pp manifest and insert include web. Save and exit the file.
+
+Apply the newly created test using the --noop flag (puppet apply --noop web/examples/init.pp):
+
+puppet apply --noop web/examples/init.pp
+
+If your dry run looks good, run puppet apply again without the flag.
+
+Take a look at <VM'S IP>/hello.html and <VM'S IP>/bonjour.html to see your new pages.
+
+Class parameters
+
+Now that you have a basic web class done, we'll move on to class parameters. Class parameters give you a way to set the variables within a class as it's declared rather than hard-coding them into a class definition.
+
+When defining a class, include a list of parameters and optional default values between the class name and the opening curly brace:
+
+class classname ( $parameter = 'default' ) {
+  ...
+}
+
+Once defined, a parameterized class can be declared with a syntax similar to that of resource declarations, including key value pairs for each parameter you want to set.
+
+class {'classname': 
+  parameter => 'value',
+}
+
+Say you want to deploy your webpage to servers around the world, and want changes in content depending on the language in each region. Instead of rewriting the whole class or module for each region, you can use class parameters to customize these values as the class is declared.
+
+To get started re-writing your web class with parameters, reopen the web/manifests/init.pp manifest. To create a new regionalized page, you need to be able to set the message and page name as class parameters.
+
+class web ( $page_name, $message ) {
+
+Now create a third file resource declaration to use the variables set by your parameters:
+
+file { "${doc_root}/${page_name}.html":
+  ensure  => file,
+  content => "<em>${message}</em>",
+}
+
+As before, use the test manifest to declare the class. You'll open web/examples/init.pp and replace the simple include statement with the parameterized class declaration syntax to set each of the class parameters:
+
+class {'web': 
+  page_name => 'hola',
+  message   => 'Hola mundo!',
+}
+
+Now give it a try. Go ahead and do a --noop run, then apply the test.
+
+Your new page should now be available at <VM'S IP>/hola.html!
+
+Before moving on, it's important to note that there's a limitation here. Puppet classes are singleton which means that a class can only be applied once on a given node. In this case, you would only be able to configure each webserver to have a single parameter-specified language page in addition to the two hard coded pages. If you want to repeat the same resource or set of resources multiple times on the same node, you can use something called a defined resource type, which we will cover in a later quest.
+
+puppet apply --noop web/examples/init.pp
+puppet apply  web/examples/init.pp
+
+
+Quest Conditional statements
+
+Quest objectives
+
+    Learn how to use conditional logic to make your manifests adaptable.
+    Understand the syntax and function of the if, unless, case, and selector statements.
+
+Conditional statements allow you to write Puppet code that will return different values or execute different blocks of code depending on conditions you specify. In conjunction with Facter, which makes details of a machine available as variables, this lets you write Puppet code that flexibly accommodates different platforms, operating systems, and functional requirements.
+
+Writing for flexibility
+
+Because Puppet manages configurations on a variety of systems fulfilling a variety of roles, great Puppet code means flexible and portable Puppet code. While the types and providers that form the core of Puppet's resource abstraction layer do a lot of heavy lifting around this kind of adaptation, there are many things best left in the hands of competent practitioners.
+
+It's sensible, for example, for Puppet's package providers to take care of installing and maintaining packages. The inputs and outputs are standardized and stable enough that what happens in between, as long as it happens reliably, can be safely hidden by abstraction; once it's done, the details are no longer important.
+
+What package is installed, on the other hand, isn't something you can safely forget. In this case, the inputs and outputs are not so neatly delimited. Though there are often broadly equivalent packages for different platforms, the equivalence isn't always complete; configuration details will often vary, and these details will likely have to be accounted for elsewhere in your Puppet module.
+
+While Puppet's built-in providers can't themselves guarantee the portability of your Puppet code at this higher level of implementation, Puppet's DSL gives you the tools to build adaptability into your modules. Facts and conditional statements are the bread and butter of this functionality.
+
+Facts
+
+You already encountered the facter tool when we asked you to run facter ipaddress in the setup section of this Quest Guide. While it's nice the be able to run facter from the command line, it really shows its worth on the back end, making information about a system available to use as variables in your manifests.
+
+While facter is an important component of Puppet and is bundled with Puppet Enterprise, it's actually one of the many separate open-source projects integrated into the Puppet ecosystem.
+
+Combined with conditionals, which we'll get to in a moment, facts give you a huge amount of power to write portability into your modules.
+
+To get a full list of facts available to facter, enter the command:
+
+facter -p | less
+
+You can reference any of the facts you see listed here with the same syntax you would use for a variable you had assigned within your manifest. There is one notable difference, however. Because facts for a node are available in any manifest compiled for that node, they exist somewhere called top scope. This means that though a fact can be accessed anywhere, it can also be overwritten by any variable of the same name in a lower scope (e.g. in node or class scope). To avoid potential collisions, it's best to explicitly scope references to facts. You specify top scope by prepending your factname with double colons :: (pronounced "scope scope"). So a fact in your manifest should look like this: $::factname.
+Conditions
+
+Conditional statements return different values or execute different blocks of code depending on the value of a specified variable. This is key to getting your Puppet modules to perform as desired on machines running different operating systems and fulfilling different roles in your infrastructure.
+
+Puppet supports a few different ways of implementing conditional logic:
+
+    if statements,
+    unless statements,
+    case statements, and
+    selectors.
+
+Because the same concept underlies these different modes of conditional logic, we'll only cover the if statement in the tasks for this quest. Once you have a good understanding of how to implement if statements, we'll leave you with descriptions of the other forms and some notes on when you may find them useful.
+If
+
+Puppet’s if statements behave much like those in other programming and scripting languages.
+
+An if statement includes a condition followed by a block of Puppet code that will only be executed if that condition evaluates as true. Optionally, an if statement can also include any number of elsif clauses and an else clause.
+
+    If the if condition fails, Puppet moves on to the elsif condition (if one exists).
+    If both the if and elsif conditions fail, Puppet will execute the code in the else clause (if one exists).
+    If all the conditions fail, and there is no else block, Puppet will do nothing and move on.
+
+Let's say you want to give the user you're creating with your accounts module administrative privileges. You have a mix of CentOS and Debian systems in your infrastructure. On your CentOS machines, you use the wheel group to manage superuser privileges, while you use an admin group on the Debian machines. With the if statement and the operatingsystem fact from facter, this kind of adjustment is easy to automate with Puppet.
+
+
+cd /etc/puppetlabs/code/environments/production/modules
+
+Create an accounts directory and your examples and manifests directories:
+
+mkdir -p accounts/{manifests,examples}
+
+Open the accounts/manifests/init.pp manifest in Vim.
+
+At the beginning of the accounts class definition, you'll include conditional logic to set the $groups variable based on the value of the $::operatingsystem fact. If the operating system is CentOS, Puppet will add the user to the wheel group, and if the operating system is Debian, Puppet will add the user to the admin group.
+
+The beginning of your class definition should look like this:
+
+class accounts ($user_name) {
+
+  if $::operatingsystem == 'centos' {
+    $groups = 'wheel'
+  }
+  elsif $::operatingsystem == 'debian' {
+    $groups = 'admin'
+  }
+  else {
+    fail( "This module doesn't support ${::operatingsystem}." )
+  }
+
+  notice ( "Groups for user ${user_name} set to ${groups}" )
+
+  ... 
+
+}
+
+Note that the string matches are not case sensitive, so 'CENTOS' would work just as well as 'centos'. Finally, in the else block, you'll raise an error if the module doesn't support the current OS.
+
+Note that the string matches are not case sensitive, so 'CENTOS' would work just as well as 'centos'. Finally, in the else block, you'll raise an error if the module doesn't support the current OS.
+
+Once you've written the conditional logic to set the $groups variable, create a user resource declaration. Use the $user_name variable set by your class parameter to set the title and home of your user, and use the $groups variable to set the user's groups attribute.
+
+class accounts ($user_name) {
+
+  ...
+
+  user { $user_name:
+    ensure => present,
+    home   => "/home/${user_name}",
+    groups => $groups,
+  }
+
+  ...
+
+}
+
+Make sure that your manifest can pass a puppet parser validate check before continuing on.
+
+Create a test manifest (accounts/examples/init.pp) and declare the accounts manifest with the name parameter set to dana.
+
+
+class {'accounts':
+  user_name => 'dana',
+}
+
+The Learning VM is running CentOS, but to test our conditional logic, we want to see what would happen on a Debian system. Luckily, we can use a little environment variable magic to override the operatingsystem fact for a test run. To provide a custom value for any facter fact as you run a puppet apply, you can include FACTER_factname=new_value before your command.
+
+Combine this with the --noop flag, to do a quick test of how your manifest would run on a different system.
+
+FACTER_operatingsystem=Debian puppet apply --noop accounts/examples/init.pp
+
+Look in the list of notices, and you'll see the changes that would have been applied.
+
+Try one more time with an unsupported operating system to check the fail condition:
+
+FACTER_operatingsystem=Darwin puppet apply --noop accounts/examples/init.pp
+
+
+Now go ahead and run a puppet apply --noop on your test manifest without setting the environment variable. If this looks good, drop the --noop flag to apply the catalog generated from your manifest.
+
+You can use the puppet resource tool to verify the results.
+Unless
+
+The unless statement works like a reversed if statement. An unless statement takes a condition and a block of Puppet code. It will only execute the block if the condition is false. If the condition is true, Puppet will do nothing and move on. Note that there is no equivalent of elsif or else clauses for unless statements.
+Case
+
+Like if statements, case statements choose one of several blocks of Puppet code to execute. Case statements take a control expression, a list of cases, and a series of Puppet code blocks that correspond to those cases. Puppet will execute the first block of code whose case value matches the control expression.
+
+A special default case matches anything. It should always be included at the end of a case statement to catch anything that did not match an explicit case. While your other cases will often be strings with surrounding quotation marks, the default case is a bare word without surrounding quotation marks.
+
+For instance, if you were setting up an Apache webserver, you might use a case statement like the following:
+
+case $::operatingsystem {
+  'CentOS': { $apache_pkg = 'httpd' }
+  'Redhat': { $apache_pkg = 'httpd' }
+  'Debian': { $apache_pkg = 'apache2' }
+  'Ubuntu': { $apache_pkg = 'apache2' }
+  default: { fail("Unrecognized operating system for webserver.") }
+}
+
+package { $apache_pkg :
+  ensure => present,
+}
+
+This would allow you to always install and manage the right Apache package for a machine's operating system. Accounting for the differences between various platforms is an important part of writing flexible and re-usable Puppet code, and it's a paradigm you will encounter frequently in published Puppet modules.
+Selector
+
+Selector statements are similar to case statements, but instead of executing a block of code, a selector assigns a value directly. A selector might look something like this:
+
+$rootgroup = $::osfamily ? {
+  'Solaris' => 'wheel',
+  'Darwin'  => 'wheel',
+  'FreeBSD' => 'wheel',
+  'default' => 'root',
+}
+
+Here, the value of the $rootgroup is determined based on the control variable $::osfamily. Following the control variable is a ? (question mark) symbol. In the block surrounded by curly braces are a series of possible values for the $::osfamily fact, followed by the value that the selector should return if the value matches the control variable.
+
+Because a selector can only return a value and cannot execute a function like fail() or warning(), it is up to you to make sure your code handles unexpected conditions gracefully. You wouldn't want Puppet to forge ahead with an inappropriate default value and encounter errors down the line.
+
+puppet apply --noop accounts/examples/init.pp
+puppet apply accounts/examples/init.pp
+puppet resource user dana
+puppet resource | less
+puppet resource userpuppet resource --types
+
+
+Quest Resource ordering
+Quest objectives
+
+    Understand why some resources must be managed in a specific order.
+    Use the before, require, notify, and subscribe metaparameters to specify the order in which Puppet applies resource declarations.
+
+Resource order
+
+So far, the modules you've written have been pretty simple. We walked you through minimal examples designed to demonstrate different features of Puppet and its language constructs. Because you've only handled a few resources at a time in these cases, we haven't been worried about dependencies among those resources.
+
+When you start tackling more complex problems, it will quickly become clear that things have to happen in the right order. You can hardly configure a package before it has been installed, or give ownership of a file to a user you haven't yet created.
+
+So how does Puppet manage these relationships?
+
+Remember, in a declarative language like Puppet you're describing a desired state for a system, not listing the steps required to achieve that state. Because Puppet manifests describe a state, not a process, you don't get the implicit linear order of steps you would from an imperative language. Puppet needs another way to know how to order resources.
+
+This is where resource relationships come in. Puppet's resource relationship syntax lets you explicitly define the dependency relationships among your resources.
+
+Though there are a couple ways to define these relationships, the simplest is to use relationship metaparameters. A metaparameter is a kind of attribute value pair that tells Puppet how you want it to implement a resource, rather than the details of the resource itself. Relationship metaparameters are set in a resource declaration along with the rest of a resource's attribute value pairs.
+
+If you're writing a module to manage SSH, for instance, you will need to ensure that the openssh-server package is installed before you try to manage the sshd service. To achieve this, you include a before metaparameter with the value Service['sshd']:
+
+package { 'openssh-server':
+  ensure => present,
+  before => Service['sshd'],
+}
+
+You can also approach the problem from the other direction. The require metaparameter is the mirror image of before. require tells Puppet that the current resource requires the one specified by the metaparameter.
+
+Using before in the openssh-server package resource is exactly equivalent to using require in the sshd service resource:
+
+service { 'sshd':
+  ensure   => running,
+  enable   => true,
+  require  => Package['openssh-server'],
+}
+
+In both of these cases, take note of the way you refer to the target resource. The target's type is capitalized, and followed by an array (denoted by the square brackets) of one or more resource titles:
+
+Type['title']
+
+We've already covered a couple of the resources you'll need, so why not make a simple SSH module to explore resource relationships?
+
+To get started with your module, create an sshd directory with examples, manifests, and files subdirectories.
+
+cd /etc/puppetlabs/code/environments/production/modules
+mkdir -p sshd/{examples,manifests,files}
+
+Create an sshd/manifests/init.pp manifest and fill in your sshd class with the openssh-server package resource and sshd service resource. Don't forget to include either a require or before to specify the relationship between these two resources. Within your class, if you include a before for the package, you don't need to include a require for the service, and vice versa, as both of these specify the same dependency relationship between the two resources. (If you need a hint as to how to complete the class, refer back to the examples above.)
+
+cat sshd/manifests/init.pp 
+class sshd {
+  package { 'openssh-server':
+    ensure   => present,
+  }
+  service { 'sshd':
+  ensure   => running,
+  enable   => true,
+  require  => Package['openssh-server'],
+  }
+}
+
+When you're done, use the puppet parser validate command to check your manifest.
+
+puppet parser validate sshd/manifests/init.pp 
+
+Before we add the file resource to manage the the sshd configuration, let's take a look at the relationship between the package and service resources from another perspective: the graph.
+
+When Puppet compiles a catalog, it generates a graph that represents the network of resource relationships in that catalog. Graph, in this context, refers to a method used in computer science and mathematics to model connections among a collection of objects. Puppet uses a graph internally to determine a workable order for applying resources, and you can access it yourself to visualize and better understand these resource relationships.
+
+The quickest way to get Puppet to generate a graph for this kind of testing is to run a test manifest with the --noop and --graph flags. Go ahead and set up an sshd/examples/init.pp manifest. You don't have any parameters here, so you can use a simple:
+
+include sshd
+
+With this done, run a puppet apply on your test manifest with the --noop and --graph flags:
+
+puppet apply sshd/examples/init.pp --noop --graph
+
+Puppet outputs a .dot file to a location defined as the graphdir. You can find the graphdir location with the puppet config print command:
+
+puppet config print graphdir
+
+Use the dot command to convert the relationships.dot file in the graphdir into a .png image. Set the location of the output to the root of the Quest Guide's web directory so that it will be easily viewable from your browser.
+
+dot -Tpng /opt/puppetlabs/puppet/cache/state/graphs/relationships.dot -o /var/www/quest/relationships.png
+
+Using your web browser, take a look at http://<VM'S IP>/relationships.png. Notice that the openssh-server and sshd resources you defined are connected by an arrow to indicate the dependency relationship.
+
+facter ipaddress
+192.168.1.12
+
+In browser: http://192.168.1.12/relationships.png
+
+
+Now let's move on to the next step. We'll use a file resource to manage the sshd configuration. First, we'll need a source file. As you did for the vimrc file in the Modules quest, you can copy the existing configuration file into your module's files.
+
+cp /etc/ssh/sshd_config sshd/files/sshd_config
+
+You will also need to ensure that the pe-puppet user has permissions to read this file.
+
+chown pe-puppet:pe-puppet sshd/files/sshd_config
+
+Of course, SSH is already reasonably configured on the Learning VM, but for the sake of example, let's make a change so you can see how Puppet handles it. We're not using GSS API Authentication, so you can improve connection performance by setting the GSSAPIAuthentication setting to no. Open the sshd/files/sshd_config file and find the GSSAPIAuthentication line. Change the setting to no, then save the file and exit your editor.
+
+With the source file prepared, go back to your sshd/manifests/init.pp manifest and add a file resource to manage the sshd_config file. You want to ensure that this file resource is applied after the openssh-server package, so include a require metaparameter targeting that resource.
+
+class sshd {
+
+  ...
+
+  file { '/etc/ssh/sshd_config':
+    ensure  => file,
+    source  => 'puppet:///modules/sshd/sshd_config',
+    require => Package['openssh-server'],
+  }
+
+}
+
+Apply your test manifest again with the --graph and --noop flags, then use the dot tool again to regenerate your graph image.
+
+puppet apply sshd/examples/init.pp --noop --graph
+
+dot -Tpng /opt/puppetlabs/puppet/cache/state/graphs/relationships.dot -o /var/www/quest/relationships.png
+
+Check <VM'S IP>/relationships.png again to see how your new file resource fits in.
+
+You can easily see from the graph diagram that both the file and service resources require the package resource. What's missing from the picture so far? If you want your configuration changes to have an effect, you will have to either make those changes before the service is started, or restart the service after you've made your changes.
+
+Puppet uses another pair of metaparameters to manage this special relationship between a service and its configuration file: notify and subscribe. The notify and subscribe metaparameters establish the same dependency relationships as before and require, respectively, and also trigger a refresh whenever Puppet makes a change to the dependency.
+
+While any resource can be the dependency that triggers a refresh, there are only a couple of resource types that can respond to one. In the following task, we'll look at service which should already be familiar to you. (The second is called exec, and the details of how it works are beyond the scope of this quest.)
+
+Like before and require, notify and subscribe are mirror images of each other. Including a notify in your file resource has exactly the same result as including subscribe in your service resource.
+
+Edit your sshd/manifests/init.pp manifest to add a subscribe metaparameter to the the sshd resource.
+
+class sshd {
+
+  ...
+
+  service { 'sshd':
+    ...
+    subscribe => File['/etc/ssh/sshd_config'],
+  }
+
+  ...
+
+}
+
+vim sshd/manifests/init.pp 
+
+Validate your syntax with the puppet parser tool. When your syntax looks good, apply your test manifest with the --graph and --noop flags, then use the dot tool again to regenerate your graph image again.
+
+puppet parser validate sshd/manifests/init.pp 
+puppet apply sshd/examples/init.pp --noop --graph
+dot -Tpng /opt/puppetlabs/puppet/cache/state/graphs/relationships.dot -o /var/www/quest/relationships.png
+
+Check <VM'S IP>/relationships.png one more time. Notice that the sshd resource now depends on the /etc/ssh/sshd_config file.
+
+Finally, drop the --noop flag to actually apply your changes. You'll see a notice that the content of the config file has changed, followed by a notice for the 'refresh' for the sshd service.
+
+puppet apply sshd/examples/init.pp 
+Notice: Compiled catalog for learning.puppetlabs.vm in environment production in 0.09 seconds
+Notice: /Stage[main]/Sshd/File[/etc/ssh/sshd_config]/content: content changed '{md5}34fbe2d433eedb81e7f2043298731cac' to '{md5}eccd13ee4b463bf59bc4c0997a89dfb5'
+Notice: /Stage[main]/Sshd/Service[sshd]: Triggered 'refresh' from 1 events
+Notice: Applied catalog in 0.55 seconds
+root@learning:/etc/puppetlabs/code/environments/production/modules # cat /etc/ssh/sshd_config 
+# File is managed by Puppet
+
+AcceptEnv LANG LC_*
+ChallengeResponseAuthentication no
+GSSAPIAuthentication no
+PermitRootLogin yes
+PrintMotd yes
+Subsystem sftp /usr/libexec/openssh/sftp-server
+UseDNS no
+UsePAM yes
+X11Forwarding yes
+
+Chaining arrows
+
+Chaining arrows provide another means for creating relationships between resources or groups of resources. The appropriate occasions for using chaining arrows involve concepts beyond the scope of this quest, but for the sake of completeness, we'll give a brief overview.
+
+The -> (ordering arrow) operator causes the resource to the left to be applied before the resource to the right.
+
+The ~> (notification arrow) operator causes the resource on the left to be applied before the resource on the right, and sends a refresh event to the resource on the right if the left resource changes.
+
+Though you may see chaining arrows used between resource declarations themselves, this generally isn't good practice. It is easy to overlook chaining arrows, especially if you're refactoring a large manifest with many resources and resource relationships.
+
+So what are chaining arrows good for? Unlike metaparameters, chaining arrows aren't embedded in a specific resource declaration. This means that you can place chaining arrows between resource references, arrays of resource references, and resource collectors to concisely and dynamically create one-to-many or many-to-many dependency relationships among groups of resources.
+
+Autorequires
+
+Autorequires are relationships between resources that Puppet can figure out for itself. For instance, Puppet knows that a file resource should always come after a parent directory that contains it, and that a user resource should always be managed after the primary group it belongs to has been created. You can find these relationships in the type reference section(https://docs.puppet.com/puppet/4.1/type.html) of the Puppet Docs page, as well as the output of the puppet describe tool.
+
+For example,
+
+puppet describe user | less
+
+Will include the following:
+
+**Autorequires:** If Puppet is managing the user's primary group (as
+provided in the `gid` attribute), the user resource will autorequire
+that group. If Puppet is managing any role accounts corresponding to the
+user's roles, the user resource will autorequire those role accounts.
+
+This means that if your catalog contains a resource declaration for a user and its primary group, Puppet will know to manage that group first, before moving on to the user. Note that these relationships between resource types are only documented in the type reference for the requiring resource type (e.g. user), not the required resource type (e.g. group).
+
+
+
+Defined Resource Types Quest
+
+Quest objectives
+
+    Understand how to manage multiple groups of resources with defined resource types.
+    Use a defined resource type to easily create home pages for users.
+
+classes, like resources, can only be realized a single time in a given catalog, you might be wondering what to do if you want Puppet to repeat the same pattern multiple times, but with different parameters.
+
+In most cases, the simplest answer is the defined resource type. A defined resource type is a block of Puppet code that can be declared multiple times with different parameter values. Once defined, a defined resource type looks and acts just like the core resource types you're already familiar with.
+
+In this quest, you will create a defined resource type for a web_user. This will let you bundle together the resources you need to create a user along with their personal web homepage. This way you can handle everything with a single resource declaration.
+
+Writing custom providers, however, is a significant commitment. When you start writing your own providers, you're taking on responsibility for all the abstraction Puppet uses to handle the implementation of that resource on diverse operating systems and configurations. Though this kind of project can be a great contribution to the Puppet community, it's not generally appropriate for a one-off solution.
+
+Puppet's defined resource types are a lightweight alternative. Though they don't have the same power to define wholly new functionality, you may be surprised at how much can be achieved by bundling together Puppet's core resource types and those provided by existing modules from the community.
+
+To get started, let's create the module structure where we'll put our web_user module.
+
+Make sure you're in your modules directory:
+
+cd /etc/puppetlabs/code/environments/production/modules
+
+And create the directories for your new module. We'll call it web_user.
+
+mkdir -p web_user/{manifests,examples}
+
+Go ahead and create a user.pp manifest where we'll define our defined resource type:
+
+vim web_user/manifests/user.pp
+
+We'll start simple. Enter the following code in your manifest, paying careful attention to the syntax and variables.
+define web_user::user {
+  $home_dir = "/home/${title}"
+  user { $title:
+    ensure => present,
+  }
+  file { $home_dir:
+    ensure  => directory,
+    owner   => $title,
+    group   => $title,
+    mode    => '0775',
+  }
+}
+
+What did you notice? First, you probably realized that this syntax is nearly identical to that you would use for a class. The only difference is that you use the define keyword instead of class.
+
+Like a class, a defined resource type brings together a collection of resources into a configurable unit. The key difference is that, as we mentioned, a defined resource type can be realized multiple times on a single system, while classes are always singleton.
+
+This brings us to the second feature of the code you may have noticed. We use the $title variable in several places, though we haven't explicitly assigned it! Also notice that this $title variable is used in the titles of both the user and file resources we're declaring. What's going on here?
+
+To understand the importance of this title variable in a defined resource type, go ahead and create a test manifest:
+
+vim web_user/examples/user.pp
+
+Declare a web_user::user resource
+
+web_user::user { 'shelob': }
+
+
+Here, we assign the title (in this case shelob), as we would for any other resource type. This title is passed through to our defined resource type as the $title variable. You may recall from the Resources quest that the title of a resource must be unique, as it's the key Puppet uses to refer to a resource internally. When you create a defined resource type, you must ensure that all the included resources are given a title unique to their type. The best way to do that is to pass the $title variable into the title of each resource. Though the title of the file resource you declared for your user's home directory is set to the $home_dir variable, this variable is assigned a string that includes the $title variable: "/home/${title}"
+
+You might also be wondering about the lack of parameters. If a resource or class has no parameters or has acceptable defaults for all of its parameters, it is possible to declare it in this brief form without the list of parameter key value pairs. (You will see this less often in the case of classes, as the idempotent include syntax is almost always preferred.) 
+
+
+Go ahead and run a --noop, then apply your test manifest:
+
+puppet apply --noop web_user/examples/user.pp
+
+puppet apply web_user/examples/user.pp
+
+Now take a look at the /home directory:
+
+ls -la /home
+
+You should now see a home directory for shelob with the permissions you specified:
+
+drwxr-xr-x   4 shelob    shelob    4096 Nov  4 18:20 shelob
+
+
+Public HTML homepages
+Now that you've seen a simple example of the syntax for a defined resource type, let's do something a little more useful with it.
+
+We've already configured the Nginx server hosting the Quest Guide to alias any location beginning with a ~ to a public_html directory in the corresponding user's home directory.
+
+You don't need to understand the details of this configuration for this quest. That said, the Puppet code we used for this configuration is a real-world example of a defined resource type, so it's worth taking a quick look. The defined resource type we used comes from the jfryman-nginx module. We declared it with a few parameters to set up a location that will automatically deal with our special ~ pages. Don't worry about the scary-looking regular expression in the title. That's specific to how our Nginx configuration works, and nothing you need to understand to use defined resource types in general.
+
+nginx::resource::location { '~ ^/~(.+?)(/.*)?$':
+  vhost          => '_',
+  location_alias => '/home/$1/public_html$2',
+  autoindex      => true,
+}
+
+That regular expression in the title (~ ^/~(.+?)(/.*)?$) captures any URL path segment preceded by a ~ as a first capture group, then the remainder of the URL path as a second capture group. It then maps that first group to to a user's home directory, and the rest to the contents of that user's public_html directory. So /~username/index.html will correspond to /home/username/public_html/index.html.
+
+If you're interested, you can check the _.conf file to see how this defined resource type is translated into a location block in our Nginx configuration file:
+
+cat /etc/nginx/sites-enabled/_.conf
+server {
+  listen *:80 default;
+  server_name           _;
+
+  index  index.html index.htm index.php;
+
+  access_log            /var/log/nginx/_.access.log combined;
+  error_log             /var/log/nginx/_.error.log;
+
+  location ~ ^/~(.+?)(/.*)?$ {
+
+    alias /home/$1/public_html$2;
+    autoindex on;
+  }
+
+  location / {
+
+    root      /var/www/quest;
+    index     index.html index.htm index.php;
+  }
+}
+
+
+So let's see about giving our web_user::user resource a public_html directory and a default index.html page. We'll need to add a directory and a file. Because the parameters for our public_html directory will be identical to those of the home directory, we can use an array to declare both at once. Note that Puppet's autorequires will take care of the ordering in this case, ensuring that the home directory is created before the public_html directory it contains.
+
+We'll set the replace parameter for the index.html file to false. This means that Puppet will create that file if it doesn't exist, but won't replace an existing file. This will allow us to create a default page for the user, but will allow the user to replace that default content without having it over-written again on the next Puppet run.
+
+Finally, we can use string interpolation to customize the default content of the user's home page. (Puppet also supports .erb and .epp style templates, which would give us a more powerful way to customize a page. We haven't covered templates, though, so string interpolation will have to do!)
+
+Reopen your manifest:
+
+vim web_user/manifests/user.pp
+
+
+And add code to configure your user's public_html directory and default index.html file:
+
+define web_user::user {
+  $home_dir    = "/home/${title}"
+  $public_html = "${home_dir}/public_html"
+  user { $title:
+    ensure     => present,
+  }
+  file { [$home_dir, $public_html]:
+    ensure  => directory,
+    owner   => $title,
+    group   => $title,
+    mode    => '0775',
+  }
+  file { "${public_html}/index.html":
+    ensure  => file,
+    owner   => $title,
+    group   => $title,
+    replace => false,
+    content => "<h1>Welcome to ${title}'s home page!</h1>",
+    mode    => '0664',
+  }
+}
+
+Use the puppet parser validate tool to check your manifest, then run a --noop before applying your test manifest again:
+puppet parser validate web_user/examples/user.pp
+puppet apply --noop web_user/examples/user.pp
+puppet apply web_user/examples/user.pp
+
+Once the Puppet run completes, take a look at your user's new default at <VM'S IP>/~shelob/index.html.
+
+
+Parameters
+
+As it is, your defined resource type doesn't give you any way to specify anything other than the resource title. Using parameters, we can pass some more information through to the contained resources to customize them to our liking. Let's add some parameters that will allow us to set a password for the user and use some custom content for the default web page.
+
+The syntax for adding parameters to defined resource types is just like that used for parameterized classes. Within a set of parentheses before the opening brace of the definition, include a comma separated list of the variables to be defined by parameters. The = operator can optionally be used to assign default values.
+
+  define web_user::user (
+    $content  = "<h1>Welcome to ${title}'s home page!</h1>",
+    $password = undef,
+  ) {
+
+
+There are a couple of details you should be sure to notice here.
+
+First, though we're using the $title variable to set the default for content, we cannot use the value of one parameter to set the default for another. Binding of these parameters to their values happens in parallel, not sequentially. Any assignment that relies on the values of other parameters must be handled within the body of the defined resource type. The $title variable is assigned prior to the binding of other parameters, so it is an exception.
+
+Second, we've given the $password parameter the special value of undef as a default. Any parameter without a default value specified will cause an error if you declare your defined resource type without specifying a value for that parameter. If we left the $password parameter without a default, you would always have to specify a password. For the underlying user resource type, however, the password parameter is actually optional on Linux systems. By using the special undef value as a default, we can explicitly tell Puppet to treat that value as undefined, and act as if we simply hadn't included it in our list of key value pairs for our user resource.
+
+Now that you have these parameters set up, go ahead and update the body of your defined resource type to make use of them.
+define web_user::user (
+  $content  = "<h1>Welcome to ${title}'s home page!</h1>",
+  $password = undef,
+) {
+  $home_dir    = "/home/${title}"
+  $public_html = "${home_dir}/public_html"
+  user { $title:
+    ensure   => present,
+    password => $password,
+  }
+  file { [$home_dir, $public_html]:
+    ensure => directory,
+    owner  => $title,
+    group  => $title,
+    mode    => '0775',
+  }
+  file { "${public_html}/index.html":
+    ensure  => file,
+    owner   => $title,
+    group   => $title,
+    replace => false,
+    content => $content,
+    mode    => '0664',
+  }
+}
+
+puppet parser validate web_user/manifests/user.pp
+
+Edit your test manifest, and add a new user to try this out:
+
+web_user::user { 'shelob': }
+web_user::user { 'frodo':
+  content  => 'Custom Content!',
+  password => pw_hash('sting', 'SHA-512', 'mysalt'),
+}
+
+Note that we're using the pw_hash function to generate a SHA-512 hash from the password 'sting' and salt 'mysalt'.
+
+Once you've made your changes, do a --noop run, then apply your test manifest:
+
+puppet apply --noop web_user/examples/user.pp
+puppet apply web_user/examples/user.pp
+
+Once the Puppet run completes, check your new user's page at <VM'S IP>/~frodo/index.html.
+
+Review
+
+In this quest, we introduced defined resource types, a lightweight and repeatable way to bundle a group of resource declarations into a repeatable and configurable group.
+
+We covered a few key details you should keep in mind when you're working on a defined resource type:
+
+    Defined resource type definitions use similar syntax to class declarations, but use the define keyword instead of class.
+    Use the $title variable in constituent resource titles to ensure uniqueness.
+    A resource with no parameters can be declared in the short type { 'title': } form.
+    Binding of parameter variables to values happens in parallel, meaning that you cannot use the value of one parameter to set another. The exception is the $title variable.
+    Parameters without a default value are required when you declare a defined resource type. However, you can use the undef value as a default if you want to allow a value to remain unspecified.
+
+
+Agent Node Setup Quest
+
+Quest objectives
+
+    Learn how to install the Puppet agent on a node.
+    Use the PE console to sign the certificate of a new node.
+    Understand a simple Puppet architecture with a Puppet master serving multiple agent nodes.
+    Use the site.pp manifest to classify nodes.
+
+In this quest, we'll use a tool called docker to simulate multiple nodes on the Learning VM. With these new nodes, you can learn how to install the Puppet agent, sign the certificates of your new nodes to allow them to join your Puppetized infrastructure, and finally use the site.pp manifest to apply some simple Puppet code on these new nodes.
+
+Please note: In this quest we will be using docker to run multiple nodes on a single VM. This quest and the following Application Orchestrator quest require a working internet connection. Our goal is to give you a lightweight environment where you can learn how Puppet works in a multi-node environment, but we achieve this at a certain cost to stability. We apologize for any issues that come up as we continue to iterate on this system. Feel free to contact us at learningvm@puppet.com.
+
+Get Some Nodes
+
+So far, we've been using two different Puppet commands to apply our Puppet code: puppet apply, and puppet agent -t. If you haven't felt confident about the distinction between these two commands, it could be because we've been doing everything on a single node where the difference between applying changes locally and involving the Puppet master isn't entirely clear. Let's take a moment to review.
+
+puppet apply compiles a catalog based on a specified manifest and applies that catalog locally. Any node with the Puppet agent installed can run a puppet apply locally. You can get quite a bit of use from puppet apply if you want to use Puppet on an agent without involving a Puppet master server. For example, if you are doing local testing of Puppet code or experimenting with a small infrastructure without a master server.
+
+puppet agent -t triggers a Puppet run. This Puppet run is a conversation between the agent node and the Puppet master. First, the agent sends a collection of facts to the Puppet master. The master takes these facts and uses them to determine what Puppet code should be applied to the node. You've seen two ways that this classification can be configured: the site.pp manifest and the PE console node classifier. The master then evaluates the Puppet code to compile a catalog that describes exactly how the resources on the node should be configured. The master sends that catalog to the agent on the node, which applies it. Finally, the agent sends its report of the Puppet run back to the master. Though we have disabled automatic Puppet runs on the Learning VM, they are scheduled by default to happen automatically every half hour.
+
+Though you only need a single node to learn to write and apply Puppet code, getting the picture of how the Puppet agent and master nodes communicate will be much easier if you actually have more than one node to work with.
+
+Containers
+
+We've created a multi_node module that will set up a pair of docker containers to act as additional agent nodes in your infrastructure. Note that docker is not a part of Puppet; it's an open-source tool we're using to build a multi-node learning environment. Running a Puppet agent on a docker container on a VM gives us a convenient way to see how Puppet works on multiple nodes, but keep in mind that it isn't a recommended way to set up your Puppet infrastructure!
+
+To apply the multi_node class to the Learning VM, add it to the learning.puppetlabs.vm node declaration in your master's site.pp manifest.
+
+vim /etc/puppetlabs/code/environments/production/manifests/site.pp
+
+Insert include multi_node into the learning.puppetlabs.vm node declaration.
+
+node learning.puppetlabs.vm {
+  include multi_node
+  ...
+}
+
+Now trigger an agent run to apply the class. Note that this might take a little while to run.
+
+puppet agent -t
+
+Once this run has completed, you can use the docker ps command to see your two new nodes. You should see one called database and one called webserver.
+
+Install the Puppet agent
+
+Now you have two fresh nodes, but you don't have the Puppet agent installed on either! Installing the agent will be the first step of getting these nodes into our Puppet infrastructure.
+
+In most cases, the simplest way to install an agent is to use the curl command to transfer an installation script from your Puppet master and execute it. Because our agents are running an Ubuntu system, we'll first need to make sure that our Puppet master has the correct script to provide.
+
+Navigate to https://<VM's IP address> in your browser address bar. Use the following credentials to connect to the console:
+
+    username: admin
+    password: puppetlabs
+
+In the Nodes > Classification section, click on the PE Infrastructure section and select the PE Master node group. Under the Classes tab, enter pe_repo::platform::ubuntu_1404_amd64. Click the Add class button and commit the change.
+
+Trigger a Puppet agent run on your Puppet master.
+
+puppet agent -t
+
+Ordinarily, you would probably use ssh to connect to your agent nodes and run this command. Because we're using docker, however, the way we connect will be a little different. To connect to your webserver node, run the following command to execute an interactive bash session on the container.
+
+docker exec -it webserver bash
+
+Paste in the curl command from the PE console to install the Puppet agent on the node (For future reference, you can find the curl command needed to install the Puppet agent in the Nodes > Unsigned Certificates section of the PE console)
+
+curl -k https://learning.puppetlabs.vm:8140/packages/current/install.bash | sudo bash
+
+The installation may take several minutes. (If you encounter an error at this point, you may need to restart your Puppet master service: service pe-puppetserver restart) When it completes, end your bash process on the container:
+
+exit
+
+And repeat the process with your database node:
+
+docker exec -it database bash
+
+Now you have two new nodes with the Puppet agent installed.
+
+While you're still in a bash session on the database node, you can try out a few commands.
+
+Let's use facter to get some information about this node:
+
+facter operatingsystem
+
+You can see that though the Learning VM itself is running CentOS, our new nodes run Ubuntu.
+
+facter fqdn
+
+We can also see that this node's fqdn is database.learning.puppetlabs.vm. This is how we can identify the node in the PE console or the site.pp manifest on our master.
+
+We can use the Puppet resource tool to easily create a new test file on your database node. Still connected to that system, run the following command:
+
+puppet resource file /tmp/test ensure=file
+
+You'll see your new file created.
+
+Notice: /File[/tmp/test]/ensure: created
+file { '/tmp/test':
+  ensure => 'file',
+}
+
+You can also use the puppet apply command to apply the contents of a manifest. Create a simple test manifest to give it a try.
+
+vim /tmp/test.pp
+
+We'll define a simple message:
+
+  notify { "Hi, I'm a manifest applied locally on an agent node": }
+
+And apply it:
+
+puppet apply /tmp/test.pp
+
+You should see the following output:
+
+Notice: Compiled catalog for database.learning.puppetlabs.vm in environment production in 0.32 seconds
+Notice: Hi, I'm a manifest applied locally on an agent node!
+Notice: /Stage[main]/Main/Notify[Hi, I'm a manifest applied locally on an agent node!]/message: defined 'message' as 'Hi, I'm a manifest applied locally on an agent node!'
+Notice: Applied catalog in 0.02 seconds
+
+To emphasize the difference between a master and agent node, let's take a look at the directories where you would find your Puppet code on the master.
+
+ls /etc/puppetlabs/code/environments/production/manifests
+
+and
+
+ls /etc/puppetlabs/code/environments/production/modules
+
+You can see that there are no modules or site.pp manifest. Unless you're doing local development and testing of a module, all the Puppet code for your infrastructure is kept on the Puppet master node, not on each individual agent. When a Puppet run is triggered—either as scheduled or manually with the puppet agent -t command, the Puppet master compiles your Puppet code into a catalog and sends it back to the agent to be applied.
+
+Let's give it a try. Trigger a Puppet run on your database node.
+
+puppet agent -t
+
+You'll see that instead of completing a Puppet run, Puppet exits with the following message:
+
+Exiting; no certificate found and waitforcert is disabled
+
+This brings us to the next topic: certification.
+
+Certificates
+
+The Puppet master keeps a list of signed certificates for each node in your infrastructure. This helps keep your infrastructure secure and prevents Puppet from making unintended changes to systems on your network.
+
+Before you can run Puppet on your new agent nodes, you need to sign their certificates on the Puppet master. If you're still connected to your agent node, return to the master:
+
+exit
+
+
+Use the puppet cert list command to list the unsigned certificates. (You can also view and sign these from the inventory page of the PE console.)
+
+puppet cert list
+
+Now sign each of your nodes' certificates:
+
+puppet cert sign webserver.learning.puppetlabs.vm
+
+and
+
+puppet cert sign database.learning.puppetlabs.vm
+
+
+
+Now your certificates are signed, so your new nodes can be managed by Puppet. To test this out, let's add a simple notify resource to the site.pp manifest on the master.
+
+vim /etc/puppetlabs/code/environments/production/manifests/site.pp
+
+Find the default node declaration, and edit it to add a notify resource that will tell us some basic information about the node.
+
+node default {
+  notify { "This is ${::fqdn}, running the ${::operatingsystem} operating system": }
+}
+
+
+Now connect to our database node again.
+
+docker exec -it database bash
+
+And try another Puppet run:
+
+puppet agent -t
+
+With your certificate signed, the agent on your node was able to properly request a catalog from the master and apply it to complete the Puppet run.
+
+Review
+
+In this quest we reviewed the difference between using puppet apply to locally compile and apply a manifest and using the puppet agent -t command to trigger a Puppet run.
+
+You created two new nodes, and explored the similarities and differences in Puppet on the agent and master. To get the Puppet master to recognize the nodes, you used the puppet cert command to sign their certificates.
+
+Finally, you used a notify resource in the default node definition of your site.pp manifest and triggered a Puppet run on an agent node to see its effect.
+
+
+Application Orchestrator Quest
+
+Quest objectives
+
+    Understand the role of orchestration in managing your infrastructure.
+    Configure the Puppet Application Orchestration service and the Orchestrator client.
+    Use Puppet code to define components and compose them into an application stack.
+    Use the puppet job run command to apply your application across a group of nodes.
+
+If you manage applications comprised of multiple services distributed across multiple nodes, you'll know that the orchestration of multiple nodes can pose some special challenges. Your applications likely need to share information among the nodes involved and configuration changes need to be made in the right order to keep your application's components from getting out of sync.
+
+Puppet's Application Orchestrator extends Puppet's powerful declarative model from the level of the single node to that of the complex application. Describe your app in Puppet code, and let the Application Orchestrator handle the implementation.
+
+Please note: Before getting started, you should know that this quest will be a significant step up in complexity from the ones that have come before it, both in terms of the concepts involved and the varieties of tools and configurations you'll be working with. Keep in mind that the Puppet Application Orchestrator is a new feature, and though it is already a powerful tool, it will continue to be extended, refined, and integrated with the rest of the Puppet ecosystem. In the meantime, please be patient with any issues you encounter. You may find it useful to refer to the documentation for the Application Orchestrator to supplement the information in this quest.
+
+Also, be aware that the multi-node setup from the previous quest is a prerequisite to this quest. As noted in that quest, the docker technology we're using to provide multiple nodes on a single VM does come at a certain cost to performance and stability. If you encounter any issues, please contact us at learningvm@puppetlabs.com.
+
+We have a single load balancer that distributes requests among three webservers, which all connect to the same database server.
+
+Each of the nodes involved in this application will have some configuration for things not directly involved in the application. Things like sshd and ntp will likely be common to many nodes in your infrastructure, and Puppet won't require specific information about the application the node is involved in to configure them correctly. In addition to these classes and resources that are independent of the application, each node in this example contains some components of the application: the webserver, database, and load balancer along with whatever other resources are necessary to support and configure their application-specific content and services.
+
+This application specific configuration is called a component. In our example, we define components for the database, webserver, and loadbalancer. Each of which contains all the classes and resources necessary for a node to fulfill its role in the application. A component is generally a defined resource type, though it can also be a class or a single resource. A defined resource type is flexible enough to include multiple resources and subclasses, and unlike a class it can be declared multiple times within the same scope, allowing our environment to have multiple instances of, for instance, the webserver component.
+
+With all the components defined, we next define their relationships with one another as an application. If your application is packaged as a module, this application definition will generally go in your init.pp manifest.
+
+The application definition tells these components how they'll communicate with one another and allows the Puppet Application Orchestrator determine the order of Puppet runs needed to correctly deploy the application to nodes in your infrastructure.
+
+This ordering of Puppet runs is a big part of how the tools in the Application Orchestrator work. It requires a little more direct control over when and how the Puppet agent runs on the nodes involved in your application. If Puppet runs occurred at the default scheduled interval of half an hour, we'd have no way of ensuring that the components of our application would be configured in the correct order. If, for example, the Puppet run on our webserver happened to trigger before that on the database server, a change to the database name would break our application. Our webserver would still try to connect to the database from a previous configuration, and would result in an error when that database wasn't available.
+
+Node Configuration
+
+To avoid this kind of uncoordinated change, you must set the nodes involved in your application to use a cached catalog when Puppet runs. This allows Puppet to run as scheduled to avoid configuration drift, but will only make changes to the catalog when you intentionally re-deploy your application. Similarly you must also disable plugin sync to ensure that any changed functionality provided by plugins (e.g. functions or providers) doesn't lead to uncoordinated changes to the nodes in your application.
+
+Of course, we could log in to each node and make the configuration change directly, but why not use Puppet to configure Puppet? There is an ini_setting resource that will let us make the necessary changes to the use_cached_catalog and pluginsync settings on each agent's puppet.conf configuration file.
+
+vim /etc/puppetlabs/code/environments/production/manifests/site.pp
+
+Because we want to apply this configuration to both the database.learning.puppetlabs.vm and webserver.learning.puppetlabs.vm nodes, we can use a regular expression in the node definition name to match both. Create a new node group with the name /^(webserver|database).*$/, and include two ini_setting resources for the configuration changes we need to make:
+
+node /^(webserver|database).*$/ {
+  pe_ini_setting { 'use_cached_catalog':
+    ensure  => present,
+    path    => $settings::config,
+    section => 'agent',
+    setting => 'use_cached_catalog',
+    value   => 'true',
+  }
+  pe_ini_setting { 'pluginsync':
+    ensure  => present,
+    path    => $settings::config,
+    section => 'agent',
+    setting => 'pluginsync',
+    value   => 'false',
+  }
+}
+
+You can trigger Puppet runs on the two nodes directly from the PE console. Navigate to your PE console by entering https://<VM'S IP ADDRESS> in the address bar of your browser. Log in with the following credentials:
+
+    User: admin
+    Password: puppetlabs
+
+Go to the Nodes > Inventory section in the PE console.
+
+Click on your database.learning.puppetlabs.vm node, and click on the Run Puppet... button link and Run button to start your Puppet run. You don't need to wait for it to finish now. Return to the Inventory section and trigger a run on webserver.learning.puppetlabs.vm as well. While these runs are in progress, feel free to continue with the rest of this quest. We'll check in to make sure they've completed correctly at the point when we need to apply code to the nodes again.
+
+Master Configuration
+
+Before we get to writing and deploying an application, however, there are a few steps we still need to do to get the Puppet Application Orchestrator tools configured correctly.
+
+The Puppet Orchestrator tool we'll use in this quest is a command-line interface that interacts with an Application Orchestration service on the Puppet master. We have enabled this service by default on the Learning VM, and it will be enabled by default in future versions of PE.
+
+Client Configuration and Permissions
+
+While the Application Orchestration service runs on your Puppet master, the client can be run on any system with a network connection to the master. This means you can manage your infrastructure directly from your workstation. Because we can't assume that the client will be run on a system with a Puppet configuration file pointing to the correct URL and environment, we need to set these explicitly. While these things could also be specified as flags from the command line, creating a configuration file will save you the trouble of typing them out each time.
+
+First, create the directory structure where this configuration file will be kept.
+
+mkdir -p ~/.puppetlabs/client-tools
+
+Now create your orchestrator configuration file.
+
+vim ~/.puppetlabs/client-tools/orchestrator.conf
+
+The file is formatted in JSON. (Remember that while final commas in your hashes are a best practice in your Puppet code, they're invalid JSON!) Set the following options:
+
+{
+  "options": {
+    "url": "https://learning.puppetlabs.vm:8143",
+    "environment": "production"
+  }
+}
+
+Now the Puppet Orchestrator client knows where the Puppet master is, but the Puppet master still needs to be able to verify that the user running commands from the Puppet Orchestrator has the correct permissions.
+
+This is achieved with PE's Role Based Access Control (RBAC) system, which we can configure through the PE console.
+
+Return to the PE console and find the Access control section in the left navigation bar.
+
+We will create a new orchestrator user and assign permissions to use the application orchestrator.
+
+Click on the Users section of the navigation bar. Add a new user with the full name "Orchestrator" and login "orchestrator".
+
+Now that this user exists, we need to set its password. Click on the user's name to see its details, and click the "Generate password reset" link. Copy and paste the url provided into your browser address bar, and set the user's password to "puppet".
+
+Next, we need to give this new user permissions to run the Puppet Orchestrator. Go to the User Roles section and create a new role with the name "Orchestrators" and description "Run the Puppet Orchestrator."
+
+Once this new role is created, click on its name to modify it. Select your "Orchestrator" user from the drop-down menu and add it to the role.
+
+Finally, go to the Permissions tab. Select "Puppet agent" from the Type drop-down menu, and "Run Puppet on agent nodes" from the Permission drop-down. Click Add permission and commit the change.
+
+Client token
+
+Now that you have a user with correct permissions, you can generate an RBAC access token to authenticate to the Orchestration service.
+
+The puppet access tool helps manage authentication. Use the puppet access login command to authenticate, and it will save a token. Add the --lifetime=1d flag so you won't have to keep generating new tokens as you work.
+
+puppet access login --service-url https://learning.puppetlabs.vm:4433/rbac-api --lifetime=1d
+
+When prompted, supply the username and password you set in the PE console's RBAC system: orchestrator and puppet.
+
+(If you get an error message, double check that you entered the url correctly.)
+
+puppet access login --service-url https://learning.puppetlabs.vm:4433/rbac-api --lifetime=1d
+Enter your Puppet Enterprise credentials.
+Username: orchestrator
+Password: 
+
+Access token saved to: /root/.puppetlabs/token
+
+Puppetized Applications
+
+Now that you've set up your master and agent nodes for the Puppet Orchestrator and configured your client, you're ready to define your application.
+
+Just like the Puppet code you've worked with in previous quests, an application definition is generally packaged in a Puppet module. The application you'll be creating in this quest will be based on the simple Linux Apache MySQL PHP (LAMP) stack pattern.
+
+Before we dive into the code, let's take a moment to review the plan for this application. What we do here will be a bit simpler than the load-balanced application we discussed above. We can save you a little typing, and still demonstrate the key features of the Application Orchestrator.
+
+We'll define two components which will be applied to two separate nodes. One will define the MySQL database configuration and will be applied to the database.learning.puppetlabs.vm node. The other will define the configuration for an Apache web server and a simple PHP application and be applied to the webserver.learning.puppetlabs.vm node.
+
+We can use existing modules to configure MySQL and Apache. Ensure that these are installed on your master:
+
+puppet module install puppetlabs-mysql
+
+and
+
+puppet module install puppetlabs-apache
+
+puppet module install puppetlabs-apache
+Notice: Preparing to install into /etc/puppetlabs/code/environments/production/modules ...
+Notice: Downloading from https://forgeapi.puppet.com ...
+Error: Could not install module 'puppetlabs-apache' (???)
+  No version of 'puppetlabs-apache' can satisfy all dependencies
+    Use `puppet module install --ignore-dependencies` to install only this module
+root@learning:/etc/puppetlabs/code/environments/production/modules # puppet module install --ignore-dependencies puppetlabs-apache
+Notice: Preparing to install into /etc/puppetlabs/code/environments/production/modules ...
+Notice: Downloading from https://forgeapi.puppet.com ...
+Notice: Installing -- do not interrupt ...
+/etc/puppetlabs/code/environments/production/modules
+└── puppetlabs-apache (v1.11.0)
+
+So for these two nodes to be deployed correctly, what needs to happen? First, we have to make sure the nodes are deployed in the correct order. Because our webserver node relies on our MySQL server, we need to ensure that Puppet runs on our database server first and webserver second. We also need a method for passing information among our nodes. Because the information our webserver needs to connect to our database may be based on facter facts, conditional logic, or functions in the Puppet manifest that defines the component, Puppet won't know what it is until it actually generates the catalog for the database node. Once Puppet has this information, it needs a way to pass it on as parameters for our webserver component.
+
+Both of these requirements are met through something called an environment resource. Unlike the node-specific resources (like user or file) that tell Puppet how to configure a single machine, environment resources carry data and define relationships across multiple nodes in an environment. We'll get more into the details of how this works as we implement our application.
+
+So the first step in creating an application is to determine exactly what information needs to be passed among the components. What does this look like in the case of our LAMP application?
+
+    Host: Our webserver needs to know the hostname of the database server.
+    Database: We need to know the name of the specific database to which to connect.
+    User: If we want to connect to the database, we'll the name of a database user.
+    Password: We'll also need to know the password associated with that user.
+
+This list specifies what our database server produces and what our webserver consumes. If we pass this information to our webserver, it will have everything it needs to connect to the database hosted on the database server.
+
+To allow all this information to be produced when we run Puppet on our database server and consumed by our webserver, we'll create a custom resource type called sql. Unlike a typical node resource our sql resource won't directly specify any changes on our nodes. You can think of it as a sort of dummy resource. Once its parameters are set by the database component, it just sits in an environment level catalog so those parameters can be consumed by the webserver component. (Note that environment resources can include more complex polling code that will let Puppet wait until a prerequisite service has come online before moving on to dependent components. Because this requires some more complex Ruby knowledge, it's outside the scope of this quest.)
+
+Unlike the defined resource types that can be written in native Puppet code, creating a custom type requires a quick detour into Ruby. The syntax will be very simple, so don't worry if you're not familiar with the language.
+
+As before, the first step is to create your module directory structure. Make sure you're in your modules directory:
+
+cd /etc/puppetlabs/code/environments/production/modules
+
+And create your directories:
+
+mkdir -p lamp/{manifests,lib/puppet/type}
+
+Note that we're burying our type in the lib/puppet/type directory. The lib/puppet/ directory is where you keep any extensions to the core Puppet language that your module provides. For example, in addition to types, you might also define new providers or functions.
+
+Now let's go ahead and create our new sql resource type.
+
+vim lamp/lib/puppet/type/sql.rb
+
+The new type is defined by a block of Ruby code, like so:
+
+Puppet::Type.newtype :sql, :is_capability => true do
+  newparam :name, :is_namevar => true
+  newparam :user
+  newparam :password
+  newparam :host
+  newparam :database
+end
+
+See, not too bad! Note that it's the is_capability => true bit that lets this resource live on the environment level, rather than being applied to a specific node. Everything else should be reasonably self-explanatory. Again, we don't actually have to do anything with this resource, so all we have to do is tell it what we want to name our parameters.
+
+Now that we have our new sql resource type, we can move on to the database component that will produce it. This component lives in our lamp module and defines a configuration for a MySQL server, so we'll name it lamp::mysql.
+
+vim lamp/manifests/mysql.pp
+
+It will look like this:
+define lamp::mysql (
+  $db_user,
+  $db_password,
+  $host     = $::hostname,
+  $database = $name,
+) {
+
+  class { '::mysql::server':
+    service_provider => 'debian',
+    override_options => {
+      'mysqld' => { 'bind-address' => '0.0.0.0' }
+    },
+  }
+
+  mysql::db { $name:
+    user     => $db_user,
+    password => $db_password,
+    host     => '%',
+    grant    => ['SELECT', 'INSERT', 'UPDATE', 'DELETE'],
+  }
+
+  class { '::mysql::bindings':
+    php_enable       => true,
+    php_package_name => 'php5-mysql',
+  }
+
+}
+Lamp::Mysql produces Sql {
+  user     => $db_user,
+  password => $db_password,
+  host     => $host,
+  database => $database,
+}
+
+Check the the manifest with the puppet parser tool. Because orchestration uses some new syntax, include the --app_management flag.
+
+puppet parser validate --app_management lamp/manifests/mysql.pp
+
+Next, create a webapp component to configure an Apache server and a simple PHP application:
+
+vim lamp/manifests/webapp.pp
+
+It will look like this:
+define lamp::webapp (
+  $db_user,
+  $db_password,
+  $db_host,
+  $db_name,
+  $docroot = '/var/www/html'
+) {
+  class { 'apache':
+    default_mods  => false,
+    mpm_module    => 'prefork',
+    default_vhost => false,
+  }
+
+  apache::vhost { $name:
+    port           => '80',
+    docroot        => $docroot,
+    directoryindex => ['index.php','index.html'],
+  }
+
+  package { 'php5-mysql':
+    ensure => installed,
+    notify => Service['httpd'],
+  }
+
+  include apache::mod::php
+
+  $indexphp = @("EOT"/)
+    <?php
+    \$conn = mysql_connect('${db_host}', '${db_user}', '${db_password}');
+    if (!\$conn) {
+      echo 'Connection to ${db_host} as ${db_user} failed';
+    } else {
+      echo 'Connected successfully to ${db_host} as ${db_user}';
+    }
+    ?>
+    | EOT
+
+  file { "${docroot}/index.php":
+    ensure  => file,
+    content => $indexphp,
+  }
+
+}
+Lamp::Webapp consumes Sql {
+  db_user     => $user,
+  db_password => $password,
+  db_host     => $host,
+  db_name     => $database,
+}
+
+Again, check the syntax of your manifest.
+
+puppet parser validate --app_management lamp/manifests/webapp.pp
+
+
+Now that we have all of our components ready to go, we can define the application itself. Because the application is the main thing provided by the lamp module, it goes in the init.pp manifest.
+
+vim lamp/manifests/init.pp
+
+We've already done the bulk of the work in our components, so this one will be pretty simple. The syntax for an application is similar to that of a class or defined resource type. The only difference is that we use the application keyword instead of define or class.
+application lamp (
+  $db_user,
+  $db_password,
+) {
+
+  lamp::mysql { $name:
+    db_user     => $db_user,
+    db_password => $db_password,
+    export      => Sql[$name],
+  }
+
+  lamp::webapp { $name:
+    consume => Sql[$name],
+  }
+
+}
+
+puppet parser validate --app_management lamp/manifests/init.pp
+
+The application has two parameters, db_user and db_password. The body of the application declares the lamp::mysql and lamp::webapp components. We pass our db_user and db_password parameters through to the lamp::mysql component. This is also where we use the special export metaparameter to tell Puppet we want this component to create a sql environment resource, which can then be consumed by the lamp::webapp component. Remember that Lamp::Mysql produces Sql block we put after the component definition?
+
+Lamp::Mysql produces Sql {
+  user     => $db_user,
+  password => $db_password,
+  host     => $host,
+  database => $database,
+}
+
+This tells Puppet how to map variables parameters in our lamp::mysql component into a sql environment resource when we use this export metaparameter. Note that even though we're only explicitly setting the db_user and db_password parameters in this component declaration, the parameter defaults from the component will pass through as well.
+
+The matching Lamp::Webapp consumes Sql block in the webapp.pp manifest tells Puppet how to map the parameters of the sql environment resource to our lamp::webapp component when we include the consume => Sql[$name] metaparameter.
+
+Lamp::Webapp consumes Sql {
+  db_name     => $name,
+  db_user     => $user,
+  db_host     => $host,
+  db_password => $password,
+}
+
+Once you've finished your application definition, validate your syntax and make any necessary corrections.
+
+puppet parser validate --app_management lamp/manifests/init.pp
+
+At this point, use the tree command to check that all the components of your module are in place.
+
+tree lamp
+
+Your module should look like the following:
+
+modules/lamp/
+├── lib
+│   └── puppet
+│       └── type
+│           └── sql.rb
+└── manifests
+    ├── init.pp
+    ├── mysql.pp
+    └── webapp.pp
+
+4 directories, 4 files
+
+
+Now that your application is defined, the final step is to declare it in your site.pp manifest.
+
+vim /etc/puppetlabs/code/environments/production/manifests/site.pp
+
+Until now, most of the configuration you've made in your site.pp has been in the context of node blocks. An application, however, is applied to your environment independently of any classification defined in your node blocks or the PE console node classifier. To express this distinction, we declare our application instance in a special block called site.
+
+site { 
+  lamp { 'app1':
+    db_user     => 'roland',
+    db_password => '12345',
+    nodes       => {
+      Node['database.learning.puppetlabs.vm']  => Lamp::Mysql['app1'],
+      Node['webserver.learning.puppetlabs.vm'] => Lamp::Webapp['app1'],
+    }
+  }
+}
+
+The syntax for declaring an application is similar to that of a class or resource. The db_user and db_password parameters are set as usual.
+
+The nodes parameter is where the orchestration magic happens. This parameter takes a hash of nodes paired with one or more components. In this case, we've assigned the Lamp::Mysql['app1'] component to database.learning.puppetlabs.vm and the Lamp::Webapp['app1'] component to webserver.learning.puppetlabs.vm. When the Application Orchestrator runs, it uses the exports and consumes metaparameters in your application definition (in your lamp/manifests/init.pp manifest, for example) to determine the correct order of Puppet runs across the nodes in the application.
+
+Now that the application is declared in our site.pp manifest, we can use the puppet app tool to view it.
+
+puppet app show
+
+You should see a result like the following:
+
+Lamp['app1']
+  Lamp::Mysql['app1'] => database.learning.puppetlabs.vm
+      - produces Sql['app1']
+  Lamp::Webapp['app1'] => webserver.learning.puppetlabs.vm
+      - consumes Sql['app1']
+
+puppet app show
+Failed to retrieve application instances: puppetlabs.orchestrator/not-permitted: User does not have permission to use orchestration
+
+Use the puppet job command to deploy the application.
+
+puppet job run Lamp['app1']
+
+puppet job run Lamp['app1']
+Deprecation Warning: Use --application 'Lamp[app1]' to specify an application target.
+Starting deployment ...
+Failed to submit job: puppetlabs.orchestrator/not-permitted: User does not have permission to use orchestration
+
+You can check on the status of any running or completed jobs with the puppet job show command.
+
+Now that your nodes are configured with your new application, let's take a moment to check out the result. First, we can log in to the database server and have a look our MySQL instance.
+
+docker exec -it database bash
+
+Remember, no matter what OS you're on, you can use the puppet resource command to check the status of a service. Let's see if the MySQL server is running:
+
+puppet resource service mysql
+
+You should see that the service is running. If you like, you can also open the client with the mysql command. When you're done, use \q to exit.
+
+Now go ahead and disconnect from the database node.
+
+exit
+
+Instead of logging in to our webserver node, let's just check if the server is running. In the pre-configured docker setup for this quest, we mapped port 80 on the webserver.learning.puppetlabs.vm container to port 10080 on learning.puppetlabs.vm. In a web browser on your host machine, go to http://<IP_ADDRESS>:10080/index.php to see your PHP website.
+Review
+
+In the quest, we discussed the role of the Puppet Orchestrator tool in coordinating Puppet runs across multiple nodes.
+
+Before getting into the specifics of defining an application and running it as a job, we covered the configuration details on the Puppet agent nodes and the setup for the Puppet Application Orchestrator client. You can review these steps and find further information at the Puppet Documentation website.
+
+Defining an application generally requires several distinct manifests and ruby extensions:
+
+    Application components, which are typically written as defined resource types
+    New type definitions for any environment resources needed to pass parameters among your components
+    An application definition to declare your application components and specify their relationships to one another.
+    A declaration of your application in the site block of your site.pp manifest to assign your components to nodes in your infrastructure.
+
+Once an application is defined, you can use the puppet app show command to see it, and the puppet job run command to run it. You can see running and completed jobs with the puppet job show command.
+
+
+
+
