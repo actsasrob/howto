@@ -362,6 +362,7 @@ $four_items = $my_list[3,6]
 You can access specific items within a Hash by using the hash key within square brackets as follows:
     $username = $my_hash['username']
 
+
 Use curly braces when interpolating variables into a double-quoted string. The curly braces must surround both the variable name and the index or key (within square brackets) when accessing hash keys or array indexes:
 ```
 notice( "The user's name is ${username}" )
@@ -435,6 +436,7 @@ You can also compare values to data types, like so:
 $not_true =~ Boolean	 # true if true or false
 $num_tokens =~ Integer   # true if an integer
 $my_name !~ String       # true if no a string
+```
 
 ## Evaluating Conditional Expressions
 
