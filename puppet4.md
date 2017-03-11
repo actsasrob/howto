@@ -55,8 +55,8 @@ represent a singular element that you wish to evaluate, create, or remove. Puppe
 comes with many built-in resource types.
 
 Example notify resouce:
-'''
+```
 notify { 'greeting':
    message => 'Hello, world!'
 }
-'''
+```
