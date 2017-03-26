@@ -1,0 +1,1791 @@
+# Python Howto
+
+## Use interactively
+    python
+
+to exit type cntrl-D or quit()
+
+## Argument Passing
+
+When known to the interpreter, the script name and additional arguments thereafter are turned into a list of strings and assigned to the argv variable in the sys module. You can access this list by executing import sys. The length of the list is at least one; when no script and no arguments are given, sys.argv[0] is an empty string. When the script name is given as '-' (meaning standard input), sys.argv[0] is set to '-'. When -c command is used, sys.argv[0] is set to '-c'. When -m module is used, sys.argv[0] is set to the full name of the located module. Options found after -c command or -m module are not consumed by the Python interpreter’s option processing but left in sys.argv for the command or module to handle.
+
+
+## Strings
+String literals can span multiple lines. One way is using triple-quotes: """   """ or '''   '''. End of lines are automatically included in the string, but it’s possible to prevent this by adding a \ at the end of the line. The following example:
+
+```
+print """\
+Usage: thingy [OPTIONS]
+     -h                        Display this usage message
+     -H hostname               Hostname to connect to
+"""
+```
+
+If you don’t want characters prefaced by \ to be interpreted as special characters, you can use raw strings by adding an r before the first quote:
+
+```
+>>> print 'C:\some\name'  # here \n means newline!
+C:\some
+ame
+>>> print r'C:\some\name'  # note the r before the quote
+C:\some\name
+```
+
+Strings can be concatenated (glued together) with the + operator, and repeated with \*:
+
+```
+>>> # 3 times 'un', followed by 'ium'
+>>> 3 * 'un' + 'ium'
+'unununium'
+```
+
+If you want to concatenate variables or a variable and a literal, use +:
+
+```
+prefix = 'Py'
+>>> prefix + 'thon'
+'Python'
+```
+
+Strings can be indexed (subscripted), with the first character having index 0. There is no separate character type; a character is simply a string of size one:
+
+```
+>>> word = 'Python'
+>>> word[0]  # character in position 0
+'P'
+>>> word[5]  # character in position 5
+'n'
+```
+
+Indices may also be negative numbers, to start counting from the right:
+
+```
+>>> word[-1]  # last character
+'n'
+>>> word[-2]  # second-last character
+'o'
+>>> word[-6]
+'P'
+```
+
+In addition to indexing, slicing is also supported. While indexing is used to obtain individual characters, slicing allows you to obtain a substring:
+
+```
+>>> word[0:2]  # characters from position 0 (included) to 2 (excluded)
+'Py'
+>>> word[2:5]  # characters from position 2 (included) to 5 (excluded)
+'tho'
+```
+
+Note how the start is always included, and the end always excluded. This makes sure that s[:i] + s[i:] is always equal to s:
+
+```
+>>> word[:2] + word[2:]
+'Python'
+>>> word[:4] + word[4:]
+'Python'
+```
+
+The built-in function len() returns the length of a string:
+
+```
+>>> s = 'supercalifragilisticexpialidocious'
+>>> len(s)
+34
+```
+
+## Lists
+
+Python knows a number of compound data types, used to group together other values. The most versatile is the list, which can be written as a list of comma-separated values (items) between square brackets. Lists might contain items of different types, but usually the items all have the same type.
+
+```
+>>> squares = [1, 4, 9, 16, 25]
+>>> squares
+[1, 4, 9, 16, 25]
+```
+
+Like strings (and all other built-in sequence type), lists can be indexed and sliced:
+
+```
+>>> squares[0]  # indexing returns the item
+1
+>>> squares[-1]
+25
+>>> squares[-3:]  # slicing returns a new list
+[9, 16, 25]
+```
+
+All slice operations return a new list containing the requested elements. This means that the following slice returns a new (shallow) copy of the list:
+
+```
+>>> squares[:]
+[1, 4, 9, 16, 25]
+```
+
+Lists also supports operations like concatenation:
+
+```
+>>> squares + [36, 49, 64, 81, 100]
+[1, 4, 9, 16, 25, 36, 49, 64, 81, 100]
+```
+
+Unlike strings, which are immutable, lists are a mutable type, i.e. it is possible to change their content:
+
+```
+>>> cubes = [1, 8, 27, 65, 125]  # something's wrong here
+>>> 4 ** 3  # the cube of 4 is 64, not 65!
+64
+>>> cubes[3] = 64  # replace the wrong value
+>>> cubes
+[1, 8, 27, 64, 125]
+```
+
+You can also add new items at the end of the list, by using the append() method (we will see more about methods later):
+
+```
+>>> cubes.append(216)  # add the cube of 6
+>>> cubes.append(7 ** 3)  # and the cube of 7
+>>> cubes
+[1, 8, 27, 64, 125, 216, 343]
+```
+
+Assignment to slices is also possible, and this can even change the size of the list or clear it entirely:
+
+```
+>>> letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g']
+>>> letters
+['a', 'b', 'c', 'd', 'e', 'f', 'g']
+>>> # replace some values
+>>> letters[2:5] = ['C', 'D', 'E']
+>>> letters
+['a', 'b', 'C', 'D', 'E', 'f', 'g']
+>>> # now remove them
+>>> letters[2:5] = []
+>>> letters
+['a', 'b', 'f', 'g']
+>>> # clear the list by replacing all the elements with an empty list
+>>> letters[:] = []
+>>> letters
+[]
+```
+
+The built-in function len() also applies to lists:
+
+```
+>>> letters = ['a', 'b', 'c', 'd']
+>>> len(letters)
+4
+```
+
+It is possible to nest lists (create lists containing other lists), for example:
+
+```
+>>> a = ['a', 'b', 'c']
+>>> n = [1, 2, 3]
+>>> x = [a, n]
+>>> x
+[['a', 'b', 'c'], [1, 2, 3]]
+>>> x[0]
+['a', 'b', 'c']
+>>> x[0][1]
+'b'
+```
+
+## Simple program:
+
+The print statement writes the value of the expression(s) it is given. It differs from just writing the expression you want to write (as we did earlier in the calculator examples) in the way it handles multiple expressions and strings. Strings are printed without quotes, and a space is inserted between items, so you can format things nicely, like this:
+
+```
+>>> i = 256*256
+>>> print 'The value of i is', i
+The value of i is 65536
+```
+
+A trailing comma avoids the newline after the output:
+
+```
+>>> a, b = 0, 1
+>>> while b < 1000:
+        print b,
+        a, b = b, a+b
+   
+1 1 2 3 5 8 13 21 34 55 89 144 233 377 610 987
+```
+
+## Control Flow
+
+### if Statements
+
+Perhaps the most well-known statement type is the if statement. For example:
+
+```
+>>> x = int(raw_input("Please enter an integer: "))
+Please enter an integer: 42
+>>> if x < 0:
+        x = 0
+        print 'Negative changed to zero'
+    elif x == 0:
+        print 'Zero'
+    elif x == 1:
+        print 'Single'
+    else:
+        print 'More'
+```   
+
+```
+>>> x = int(raw_input("Please enter an integer: "))
+Please enter an integer: 42
+>>> if x < 0:
+        x = 0
+        print 'Negative changed to zero'
+    elif x == 0:
+        print 'Zero'
+    elif x == 1:
+        print 'Single'
+    else:
+        print 'More'
+```   
+### Ranges
+
+If you do need to iterate over a sequence of numbers, the built-in function range() comes in handy. It generates lists containing arithmetic progressions:
+
+```
+>>> range(10)
+[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+```
+
+The given end point is never part of the generated list; range(10) generates a list of 10 values, the legal indices for items of a sequence of length 10. It is possible to let the range start at another number, or to specify a different increment (even negative; sometimes this is called the ‘step’):
+
+```
+>>> range(5, 10)
+[5, 6, 7, 8, 9]
+>>> range(0, 10, 3)
+[0, 3, 6, 9]
+>>> range(-10, -100, -30)
+[-10, -40, -70]
+```
+
+### break and continue Statements, and else Clauses on Loops
+
+The break statement, like in C, breaks out of the smallest enclosing for or while loop.
+
+Loop statements may have an else clause; it is executed when the loop terminates through exhaustion of the list (with for) or when the condition becomes false (with while), but not when the loop is terminated by a break statement. This is exemplified by the following loop, which searches for prime numbers:
+
+```
+>>> for n in range(2, 10):
+        for x in range(2, n):
+            if n % x == 0:
+                print n, 'equals', x, '*', n/x
+                break
+        else:
+            # loop fell through without finding a factor
+            print n, 'is a prime number'
+   
+2 is a prime number
+3 is a prime number
+4 equals 2 * 2
+5 is a prime number
+6 equals 2 * 3
+7 is a prime number
+8 equals 2 * 4
+9 equals 3 * 3
+``````
+
+When used with a loop, the else clause has more in common with the else clause of a try statement than it does that of if statements: a try statement’s else clause runs when no exception occurs, and a loop’s else clause runs when no break occurs. For more on the try statement and exceptions, see Handling Exceptions.
+
+The continue statement, also borrowed from C, continues with the next iteration of the loop:
+
+```
+>>> for num in range(2, 10):
+        if num % 2 == 0:
+            print "Found an even number", num
+            continue
+        print "Found a number", num
+Found an even number 2
+Found a number 3
+Found an even number 4
+Found a number 5
+Found an even number 6
+Found a number 7
+Found an even number 8
+Found a number 9
+```
+
+
+## pass Statements
+
+The pass statement does nothing. It can be used when a statement is required syntactically but the program requires no action. For example:
+
+```
+>>> while True:
+        pass  # Busy-wait for keyboard interrupt (Ctrl+C)
+   
+```
+
+This is commonly used for creating minimal classes:
+
+```
+>>> class MyEmptyClass:
+        pass
+   
+```
+
+Another place pass can be used is as a place-holder for a function or conditional body when you are working on new code, allowing you to keep thinking at a more abstract level. The pass is silently ignored:
+
+```
+>>> def initlog(\*args):
+        pass   # Remember to implement this!
+   
+```
+
+## 4.6. Defining Functions
+
+We can create a function that writes the Fibonacci series to an arbitrary boundary:
+
+```
+>>> def fib(n):    # write Fibonacci series up to n
+        """Print a Fibonacci series up to n."""
+        a, b = 0, 1
+        while a < n:
+            print a,
+            a, b = b, a+b
+  
+``` 
+>>> # Now call the function we just defined:
+    fib(2000)
+0 1 1 2 3 5 8 13 21 34 55 89 144 233 377 610 987 1597
+```
+
+The keyword def introduces a function definition. It must be followed by the function name and the parenthesized list of formal parameters. The statements that form the body of the function start at the next line, and must be indented.
+
+The first statement of the function body can optionally be a string literal; this string literal is the function’s documentation string, or docstring. (More about docstrings can be found in the section Documentation Strings.) There are tools which use docstrings to automatically produce online or printed documentation, or to let the user interactively browse through code; it’s good practice to include docstrings in code that you write, so make a habit of it.
+
+The execution of a function introduces a new symbol table used for the local variables of the function. More precisely, all variable assignments in a function store the value in the local symbol table; whereas variable references first look in the local symbol table, then in the local symbol tables of enclosing functions, then in the global symbol table, and finally in the table of built-in names. Thus, global variables cannot be directly assigned a value within a function (unless named in a global statement), although they may be referenced.
+
+The actual parameters (arguments) to a function call are introduced in the local symbol table of the called function when it is called; thus, arguments are passed using call by value (where the value is always an object reference, not the value of the object). [1] When a function calls another function, a new local symbol table is created for that call.
+
+A function definition introduces the function name in the current symbol table. The value of the function name has a type that is recognized by the interpreter as a user-defined function. This value can be assigned to another name which can then also be used as a function. This serves as a general renaming mechanism:
+
+```
+>>> fib
+<function fib at 10042ed0>
+>>> f = fib
+>>> f(100)
+0 1 1 2 3 5 8 13 21 34 55 89
+```
+
+Coming from other languages, you might object that fib is not a function but a procedure since it doesn’t return a value. In fact, even functions without a return statement do return a value, albeit a rather boring one. This value is called None (it’s a built-in name). Writing the value None is normally suppressed by the interpreter if it would be the only value written. You can see it if you really want to using print:
+
+```
+>>> fib(0)
+>>> print fib(0)
+None
+```
+It is simple to write a function that returns a list of the numbers of the Fibonacci series, instead of printing it:
+
+
+```
+def fib2(n):   # return Fibonacci series up to n
+    result = []
+    a, b = 0, 1
+    while b < n:
+        result.append(b)
+        a, b = b, a+b
+    return result
+```
+
+It is also possible to define functions with a variable number of arguments. There are three forms, which can be combined.
+### 4.7.1. Default Argument Values
+
+The most useful form is to specify a default value for one or more arguments. This creates a function that can be called with fewer arguments than it is defined to allow. For example:
+
+```
+def ask_ok(prompt, retries=4, complaint='yes or no, please!'):
+    while True:
+        ok = raw_input(prompt)
+        if ok in ('y', 'ye', 'yes'):
+            return True
+        if ok in ('n', 'no', 'nop', 'nope'):
+            return False
+        retries = retries - 1
+        if retries < 0:
+            raise IOError('refusenik user')
+        print complaint
+```
+
+### Keyword Arguments
+
+Functions can also be called using keyword arguments of the form kwarg=value. For instance, the following function:
+
+```
+def parrot(voltage, state='a stiff', action='voom', type='Norwegian Blue'):
+    print "-- This parrot wouldn't", action,
+    print "if you put", voltage, "volts through it."
+    print "-- Lovely plumage, the", type
+    print "-- It's", state, "!"
+```
+
+accepts one required argument (voltage) and three optional arguments (state, action, and type). This function can be called in any of the following ways:
+
+```
+parrot(1000)                                          # 1 positional argument
+parrot(voltage=1000)                                  # 1 keyword argument
+parrot(voltage=1000000, action='VOOOOOM')             # 2 keyword arguments
+parrot(action='VOOOOOM', voltage=1000000)             # 2 keyword arguments
+parrot('a million', 'bereft of life', 'jump')         # 3 positional arguments
+parrot('a thousand', state='pushing up the daisies')  # 1 positional, 1 keyword
+```
+
+When a final formal parameter of the form **name is present, it receives a dictionary (see Mapping Types — dict) containing all keyword arguments except for those corresponding to a formal parameter. This may be combined with a formal parameter of the form *name (described in the next subsection) which receives a tuple containing the positional arguments beyond the formal parameter list. (*name must occur before **name.) For example, if we define a function like this:
+
+```
+def cheeseshop(kind, \*arguments, \*\*keywords):
+    print "-- Do you have any", kind, "?"
+    print "-- I'm sorry, we're all out of", kind
+    for arg in arguments:
+        print arg
+    print "-" * 40
+    keys = sorted(keywords.keys())
+    for kw in keys:
+        print kw, ":", keywords[kw]
+```
+
+It could be called like this:
+
+```
+cheeseshop("Limburger", "It's very runny, sir.",
+           "It's really very, VERY runny, sir.",
+           shopkeeper='Michael Palin',
+           client="John Cleese",
+           sketch="Cheese Shop Sketch")
+```
+
+Arbitrary Argument Lists
+
+Finally, the least frequently used option is to specify that a function can be called with an arbitrary number of arguments. These arguments will be wrapped up in a tuple (see Tuples and Sequences). Before the variable number of arguments, zero or more normal arguments may occur.
+
+```
+def write_multiple_items(file, separator, \*args):
+    file.write(separator.join(args))
+```
+
+### 4.7.4. Unpacking Argument Lists
+
+The reverse situation occurs when the arguments are already in a list or tuple but need to be unpacked for a function call requiring separate positional arguments. For instance, the built-in range() function expects separate start and stop arguments. If they are not available separately, write the function call with the *-operator to unpack the arguments out of a list or tuple:
+
+```
+>>> range(3, 6)             # normal call with separate arguments
+[3, 4, 5]
+>>> args = [3, 6]
+>>> range(\*args)            # call with arguments unpacked from a list
+[3, 4, 5]
+```
+In the same fashion, dictionaries can deliver keyword arguments with the \*\*-operator:
+
+```
+>>> def parrot(voltage, state='a stiff', action='voom'):
+        print "-- This parrot wouldn't", action,
+        print "if you put", voltage, "volts through it.",
+        print "E's", state, "!"
+   
+>>> d = {"voltage": "four million", "state": "bleedin' demised", "action": "VOOM"}
+>>> parrot(\*\*d)
+-- This parrot wouldn't VOOM if you put four million volts through it. E's bleedin' demised !
+```
+
+
+## Lambda Expressions
+
+Small anonymous functions can be created with the lambda keyword. This function returns the sum of its two arguments: lambda a, b: a+b. Lambda functions can be used wherever function objects are required. They are syntactically restricted to a single expression. Semantically, they are just syntactic sugar for a normal function definition. Like nested function definitions, lambda functions can reference variables from the containing scope:
+
+```
+>>> def make_incrementor(n):
+        return lambda x: x + n
+   
+>>> f = make_incrementor(42)
+>>> f(0)
+42
+>>> f(1)
+43
+```
+
+The above example uses a lambda expression to return a function. Another use is to pass a small function as an argument:
+
+```
+>>> pairs = [(1, 'one'), (2, 'two'), (3, 'three'), (4, 'four')]
+>>> pairs.sort(key=lambda pair: pair[1])
+>>> pairs
+[(4, 'four'), (1, 'one'), (3, 'three'), (2, 'two')]
+```
+
+## Documentation Strings
+
+There are emerging conventions about the content and formatting of documentation strings.
+
+The first line should always be a short, concise summary of the object’s purpose. For brevity, it should not explicitly state the object’s name or type, since these are available by other means (except if the name happens to be a verb describing a function’s operation). This line should begin with a capital letter and end with a period.
+
+If there are more lines in the documentation string, the second line should be blank, visually separating the summary from the rest of the description. The following lines should be one or more paragraphs describing the object’s calling conventions, its side effects, etc.
+
+The Python parser does not strip indentation from multi-line string literals in Python, so tools that process documentation have to strip indentation if desired. This is done using the following convention. The first non-blank line after the first line of the string determines the amount of indentation for the entire documentation string. (We can’t use the first line since it is generally adjacent to the string’s opening quotes so its indentation is not apparent in the string literal.) Whitespace “equivalent” to this indentation is then stripped from the start of all lines of the string. Lines that are indented less should not occur, but if they occur all their leading whitespace should be stripped. Equivalence of whitespace should be tested after expansion of tabs (to 8 spaces, normally).
+
+Here is an example of a multi-line docstring:
+>>>
+
+>>> def my_function():
+        """Do nothing, but document it.
+   
+        No, really, it doesn't do anything.
+        """
+        pass
+   
+>>> print my_function.__doc__
+Do nothing, but document it.
+
+    No, really, it doesn't do anything.
+
+
+Data Structures
+
+This chapter describes some things you’ve learned about already in more detail, and adds some new things as well.
+5.1. More on Lists
+
+The list data type has some more methods. Here are all of the methods of list objects:
+
+list.append(x)
+
+    Add an item to the end of the list; equivalent to a[len(a):] = [x].
+
+list.extend(L)
+
+    Extend the list by appending all the items in the given list; equivalent to a[len(a):] = L.
+
+list.insert(i, x)
+
+    Insert an item at a given position. The first argument is the index of the element before which to insert, so a.insert(0, x) inserts at the front of the list, and a.insert(len(a), x) is equivalent to a.append(x).
+
+list.remove(x)
+
+    Remove the first item from the list whose value is x. It is an error if there is no such item.
+
+list.pop([i])
+
+    Remove the item at the given position in the list, and return it. If no index is specified, a.pop() removes and returns the last item in the list. (The square brackets around the i in the method signature denote that the parameter is optional, not that you should type square brackets at that position. You will see this notation frequently in the Python Library Reference.)
+
+list.index(x)
+
+    Return the index in the list of the first item whose value is x. It is an error if there is no such item.
+
+list.count(x)
+
+    Return the number of times x appears in the list.
+
+list.sort(cmp=None, key=None, reverse=False)
+
+    Sort the items of the list in place (the arguments can be used for sort customization, see sorted() for their explanation).
+
+list.reverse()
+
+    Reverse the elements of the list, in place.
+
+An example that uses most of the list methods:
+>>>
+
+>>> a = [66.25, 333, 333, 1, 1234.5]
+>>> print a.count(333), a.count(66.25), a.count('x')
+2 1 0
+>>> a.insert(2, -1)
+>>> a.append(333)
+>>> a
+[66.25, 333, -1, 333, 1, 1234.5, 333]
+>>> a.index(333)
+1
+>>> a.remove(333)
+>>> a
+[66.25, -1, 333, 1, 1234.5, 333]
+>>> a.reverse()
+>>> a
+[333, 1234.5, 1, 333, -1, 66.25]
+>>> a.sort()
+>>> a
+[-1, 1, 66.25, 333, 333, 1234.5]
+>>> a.pop()
+1234.5
+>>> a
+[-1, 1, 66.25, 333, 333]
+
+You might have noticed that methods like insert, remove or sort that only modify the list have no return value printed – they return the default None. [1] This is a design principle for all mutable data structures in Python.
+5.1.1. Using Lists as Stacks
+
+The list methods make it very easy to use a list as a stack, where the last element added is the first element retrieved (“last-in, first-out”). To add an item to the top of the stack, use append(). To retrieve an item from the top of the stack, use pop() without an explicit index. For example:
+>>>
+
+>>> stack = [3, 4, 5]
+>>> stack.append(6)
+>>> stack.append(7)
+>>> stack
+[3, 4, 5, 6, 7]
+>>> stack.pop()
+7
+>>> stack
+[3, 4, 5, 6]
+>>> stack.pop()
+6
+>>> stack.pop()
+5
+>>> stack
+[3, 4]
+
+5.1.2. Using Lists as Queues
+
+It is also possible to use a list as a queue, where the first element added is the first element retrieved (“first-in, first-out”); however, lists are not efficient for this purpose. While appends and pops from the end of list are fast, doing inserts or pops from the beginning of a list is slow (because all of the other elements have to be shifted by one).
+
+To implement a queue, use collections.deque which was designed to have fast appends and pops from both ends. For example:
+>>>
+
+>>> from collections import deque
+>>> queue = deque(["Eric", "John", "Michael"])
+>>> queue.append("Terry")           # Terry arrives
+>>> queue.append("Graham")          # Graham arrives
+>>> queue.popleft()                 # The first to arrive now leaves
+'Eric'
+>>> queue.popleft()                 # The second to arrive now leaves
+'John'
+>>> queue                           # Remaining queue in order of arrival
+deque(['Michael', 'Terry', 'Graham'])
+
+5.1.3. Functional Programming Tools
+
+There are three built-in functions that are very useful when used with lists: filter(), map(), and reduce().
+
+filter(function, sequence) returns a sequence consisting of those items from the sequence for which function(item) is true. If sequence is a str, unicode or tuple, the result will be of the same type; otherwise, it is always a list. For example, to compute a sequence of numbers divisible by 3 or 5:
+>>>
+
+>>> def f(x): return x % 3 == 0 or x % 5 == 0
+   
+>>> filter(f, range(2, 25))
+[3, 5, 6, 9, 10, 12, 15, 18, 20, 21, 24]
+
+map(function, sequence) calls function(item) for each of the sequence’s items and returns a list of the return values. For example, to compute some cubes:
+>>>
+
+>>> def cube(x): return x*x*x
+   
+>>> map(cube, range(1, 11))
+[1, 8, 27, 64, 125, 216, 343, 512, 729, 1000]
+
+More than one sequence may be passed; the function must then have as many arguments as there are sequences and is called with the corresponding item from each sequence (or None if some sequence is shorter than another). For example:
+>>>
+
+>>> seq = range(8)
+>>> def add(x, y): return x+y
+   
+>>> map(add, seq, seq)
+[0, 2, 4, 6, 8, 10, 12, 14]
+
+reduce(function, sequence) returns a single value constructed by calling the binary function function on the first two items of the sequence, then on the result and the next item, and so on. For example, to compute the sum of the numbers 1 through 10:
+>>>
+
+>>> def add(x,y): return x+y
+   
+>>> reduce(add, range(1, 11))
+55
+
+If there’s only one item in the sequence, its value is returned; if the sequence is empty, an exception is raised.
+
+A third argument can be passed to indicate the starting value. In this case the starting value is returned for an empty sequence, and the function is first applied to the starting value and the first sequence item, then to the result and the next item, and so on. For example,
+>>>
+
+>>> def sum(seq):
+        def add(x,y): return x+y
+        return reduce(add, seq, 0)
+   
+>>> sum(range(1, 11))
+55
+>>> sum([])
+0
+
+Don’t use this example’s definition of sum(): since summing numbers is such a common need, a built-in function sum(sequence) is already provided, and works exactly like this.
+5.1.4. List Comprehensions
+
+List comprehensions provide a concise way to create lists. Common applications are to make new lists where each element is the result of some operations applied to each member of another sequence or iterable, or to create a subsequence of those elements that satisfy a certain condition.
+
+For example, assume we want to create a list of squares, like:
+>>>
+
+>>> squares = []
+>>> for x in range(10):
+        squares.append(x**2)
+   
+>>> squares
+[0, 1, 4, 9, 16, 25, 36, 49, 64, 81]
+
+We can obtain the same result with:
+
+squares = [x**2 for x in range(10)]
+
+This is also equivalent to squares = map(lambda x: x**2, range(10)), but it’s more concise and readable.
+
+A list comprehension consists of brackets containing an expression followed by a for clause, then zero or more for or if clauses. The result will be a new list resulting from evaluating the expression in the context of the for and if clauses which follow it. For example, this listcomp combines the elements of two lists if they are not equal:
+>>>
+
+>>> [(x, y) for x in [1,2,3] for y in [3,1,4] if x != y]
+[(1, 3), (1, 4), (2, 3), (2, 1), (2, 4), (3, 1), (3, 4)]
+
+and it’s equivalent to:
+>>>
+
+>>> combs = []
+>>> for x in [1,2,3]:
+        for y in [3,1,4]:
+            if x != y:
+                combs.append((x, y))
+   
+>>> combs
+[(1, 3), (1, 4), (2, 3), (2, 1), (2, 4), (3, 1), (3, 4)]
+
+Note how the order of the for and if statements is the same in both these snippets.
+
+If the expression is a tuple (e.g. the (x, y) in the previous example), it must be parenthesized.
+>>>
+
+>>> vec = [-4, -2, 0, 2, 4]
+>>> # create a new list with the values doubled
+>>> [x*2 for x in vec]
+[-8, -4, 0, 4, 8]
+>>> # filter the list to exclude negative numbers
+>>> [x for x in vec if x >= 0]
+[0, 2, 4]
+>>> # apply a function to all the elements
+>>> [abs(x) for x in vec]
+[4, 2, 0, 2, 4]
+>>> # call a method on each element
+>>> freshfruit = ['  banana', '  loganberry ', 'passion fruit  ']
+>>> [weapon.strip() for weapon in freshfruit]
+['banana', 'loganberry', 'passion fruit']
+>>> # create a list of 2-tuples like (number, square)
+>>> [(x, x**2) for x in range(6)]
+[(0, 0), (1, 1), (2, 4), (3, 9), (4, 16), (5, 25)]
+>>> # the tuple must be parenthesized, otherwise an error is raised
+>>> [x, x**2 for x in range(6)]
+  File "<stdin>", line 1
+    [x, x**2 for x in range(6)]
+               ^
+SyntaxError: invalid syntax
+>>> # flatten a list using a listcomp with two 'for'
+>>> vec = [[1,2,3], [4,5,6], [7,8,9]]
+>>> [num for elem in vec for num in elem]
+[1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+List comprehensions can contain complex expressions and nested functions:
+>>>
+
+>>> from math import pi
+>>> [str(round(pi, i)) for i in range(1, 6)]
+['3.1', '3.14', '3.142', '3.1416', '3.14159']
+
+5.1.4.1. Nested List Comprehensions
+
+The initial expression in a list comprehension can be any arbitrary expression, including another list comprehension.
+
+Consider the following example of a 3x4 matrix implemented as a list of 3 lists of length 4:
+>>>
+
+>>> matrix = [
+        [1, 2, 3, 4],
+        [5, 6, 7, 8],
+        [9, 10, 11, 12],
+    ]
+
+The following list comprehension will transpose rows and columns:
+>>>
+
+>>> [[row[i] for row in matrix] for i in range(4)]
+[[1, 5, 9], [2, 6, 10], [3, 7, 11], [4, 8, 12]]
+
+As we saw in the previous section, the nested listcomp is evaluated in the context of the for that follows it, so this example is equivalent to:
+>>>
+
+>>> transposed = []
+>>> for i in range(4):
+        transposed.append([row[i] for row in matrix])
+   
+>>> transposed
+[[1, 5, 9], [2, 6, 10], [3, 7, 11], [4, 8, 12]]
+
+which, in turn, is the same as:
+>>>
+
+>>> transposed = []
+>>> for i in range(4):
+        # the following 3 lines implement the nested listcomp
+        transposed_row = []
+        for row in matrix:
+            transposed_row.append(row[i])
+        transposed.append(transposed_row)
+   
+>>> transposed
+[[1, 5, 9], [2, 6, 10], [3, 7, 11], [4, 8, 12]]
+
+In the real world, you should prefer built-in functions to complex flow statements. The zip() function would do a great job for this use case:
+>>>
+
+>>> zip(*matrix)
+[(1, 5, 9), (2, 6, 10), (3, 7, 11), (4, 8, 12)]
+
+See Unpacking Argument Lists for details on the asterisk in this line.
+5.2. The del statement
+
+There is a way to remove an item from a list given its index instead of its value: the del statement. This differs from the pop() method which returns a value. The del statement can also be used to remove slices from a list or clear the entire list (which we did earlier by assignment of an empty list to the slice). For example:
+>>>
+
+>>> a = [-1, 1, 66.25, 333, 333, 1234.5]
+>>> del a[0]
+>>> a
+[1, 66.25, 333, 333, 1234.5]
+>>> del a[2:4]
+>>> a
+[1, 66.25, 1234.5]
+>>> del a[:]
+>>> a
+[]
+
+del can also be used to delete entire variables:
+>>>
+
+>>> del a
+
+Referencing the name a hereafter is an error (at least until another value is assigned to it). We’ll find other uses for del later.
+5.3. Tuples and Sequences
+
+We saw that lists and strings have many common properties, such as indexing and slicing operations. They are two examples of sequence data types (see Sequence Types — str, unicode, list, tuple, bytearray, buffer, xrange). Since Python is an evolving language, other sequence data types may be added. There is also another standard sequence data type: the tuple.
+
+A tuple consists of a number of values separated by commas, for instance:
+>>>
+
+>>> t = 12345, 54321, 'hello!'
+>>> t[0]
+12345
+>>> t
+(12345, 54321, 'hello!')
+>>> # Tuples may be nested:
+    u = t, (1, 2, 3, 4, 5)
+>>> u
+((12345, 54321, 'hello!'), (1, 2, 3, 4, 5))
+>>> # Tuples are immutable:
+    t[0] = 88888
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+TypeError: 'tuple' object does not support item assignment
+>>> # but they can contain mutable objects:
+    v = ([1, 2, 3], [3, 2, 1])
+>>> v
+([1, 2, 3], [3, 2, 1])
+
+As you see, on output tuples are always enclosed in parentheses, so that nested tuples are interpreted correctly; they may be input with or without surrounding parentheses, although often parentheses are necessary anyway (if the tuple is part of a larger expression). It is not possible to assign to the individual items of a tuple, however it is possible to create tuples which contain mutable objects, such as lists.
+
+Though tuples may seem similar to lists, they are often used in different situations and for different purposes. Tuples are immutable, and usually contain a heterogeneous sequence of elements that are accessed via unpacking (see later in this section) or indexing (or even by attribute in the case of namedtuples). Lists are mutable, and their elements are usually homogeneous and are accessed by iterating over the list.
+
+A special problem is the construction of tuples containing 0 or 1 items: the syntax has some extra quirks to accommodate these. Empty tuples are constructed by an empty pair of parentheses; a tuple with one item is constructed by following a value with a comma (it is not sufficient to enclose a single value in parentheses). Ugly, but effective. For example:
+>>>
+
+>>> empty = ()
+>>> singleton = 'hello',    # <-- note trailing comma
+>>> len(empty)
+0
+>>> len(singleton)
+1
+>>> singleton
+('hello',)
+
+The statement t = 12345, 54321, 'hello!' is an example of tuple packing: the values 12345, 54321 and 'hello!' are packed together in a tuple. The reverse operation is also possible:
+>>>
+
+>>> x, y, z = t
+
+This is called, appropriately enough, sequence unpacking and works for any sequence on the right-hand side. Sequence unpacking requires the list of variables on the left to have the same number of elements as the length of the sequence. Note that multiple assignment is really just a combination of tuple packing and sequence unpacking.
+5.4. Sets
+
+Python also includes a data type for sets. A set is an unordered collection with no duplicate elements. Basic uses include membership testing and eliminating duplicate entries. Set objects also support mathematical operations like union, intersection, difference, and symmetric difference.
+
+Curly braces or the set() function can be used to create sets. Note: to create an empty set you have to use set(), not {}; the latter creates an empty dictionary, a data structure that we discuss in the next section.
+
+Here is a brief demonstration:
+>>>
+
+>>> basket = ['apple', 'orange', 'apple', 'pear', 'orange', 'banana']
+>>> fruit = set(basket)               # create a set without duplicates
+>>> fruit
+set(['orange', 'pear', 'apple', 'banana'])
+>>> 'orange' in fruit                 # fast membership testing
+True
+>>> 'crabgrass' in fruit
+False
+
+>>> # Demonstrate set operations on unique letters from two words
+   
+>>> a = set('abracadabra')
+>>> b = set('alacazam')
+>>> a                                  # unique letters in a
+set(['a', 'r', 'b', 'c', 'd'])
+>>> a - b                              # letters in a but not in b
+set(['r', 'd', 'b'])
+>>> a | b                              # letters in either a or b
+set(['a', 'c', 'r', 'd', 'b', 'm', 'z', 'l'])
+>>> a & b                              # letters in both a and b
+set(['a', 'c'])
+>>> a ^ b                              # letters in a or b but not both
+set(['r', 'd', 'b', 'm', 'z', 'l'])
+
+Similarly to list comprehensions, set comprehensions are also supported:
+>>>
+
+>>> a = {x for x in 'abracadabra' if x not in 'abc'}
+>>> a
+set(['r', 'd'])
+
+5.5. Dictionaries
+
+Another useful data type built into Python is the dictionary (see Mapping Types — dict). Dictionaries are sometimes found in other languages as “associative memories” or “associative arrays”. Unlike sequences, which are indexed by a range of numbers, dictionaries are indexed by keys, which can be any immutable type; strings and numbers can always be keys. Tuples can be used as keys if they contain only strings, numbers, or tuples; if a tuple contains any mutable object either directly or indirectly, it cannot be used as a key. You can’t use lists as keys, since lists can be modified in place using index assignments, slice assignments, or methods like append() and extend().
+
+It is best to think of a dictionary as an unordered set of key: value pairs, with the requirement that the keys are unique (within one dictionary). A pair of braces creates an empty dictionary: {}. Placing a comma-separated list of key:value pairs within the braces adds initial key:value pairs to the dictionary; this is also the way dictionaries are written on output.
+
+The main operations on a dictionary are storing a value with some key and extracting the value given the key. It is also possible to delete a key:value pair with del. If you store using a key that is already in use, the old value associated with that key is forgotten. It is an error to extract a value using a non-existent key.
+
+The keys() method of a dictionary object returns a list of all the keys used in the dictionary, in arbitrary order (if you want it sorted, just apply the sorted() function to it). To check whether a single key is in the dictionary, use the in keyword.
+
+Here is a small example using a dictionary:
+>>>
+
+>>> tel = {'jack': 4098, 'sape': 4139}
+>>> tel['guido'] = 4127
+>>> tel
+{'sape': 4139, 'guido': 4127, 'jack': 4098}
+>>> tel['jack']
+4098
+>>> del tel['sape']
+>>> tel['irv'] = 4127
+>>> tel
+{'guido': 4127, 'irv': 4127, 'jack': 4098}
+>>> tel.keys()
+['guido', 'irv', 'jack']
+>>> 'guido' in tel
+True
+
+The dict() constructor builds dictionaries directly from sequences of key-value pairs:
+>>>
+
+>>> dict([('sape', 4139), ('guido', 4127), ('jack', 4098)])
+{'sape': 4139, 'jack': 4098, 'guido': 4127}
+
+In addition, dict comprehensions can be used to create dictionaries from arbitrary key and value expressions:
+>>>
+
+>>> {x: x**2 for x in (2, 4, 6)}
+{2: 4, 4: 16, 6: 36}
+
+When the keys are simple strings, it is sometimes easier to specify pairs using keyword arguments:
+>>>
+
+>>> dict(sape=4139, guido=4127, jack=4098)
+{'sape': 4139, 'jack': 4098, 'guido': 4127}
+
+5.6. Looping Techniques
+
+When looping through a sequence, the position index and corresponding value can be retrieved at the same time using the enumerate() function.
+>>>
+
+>>> for i, v in enumerate(['tic', 'tac', 'toe']):
+        print i, v
+   
+0 tic
+1 tac
+2 toe
+
+To loop over two or more sequences at the same time, the entries can be paired with the zip() function.
+>>>
+
+>>> questions = ['name', 'quest', 'favorite color']
+>>> answers = ['lancelot', 'the holy grail', 'blue']
+>>> for q, a in zip(questions, answers):
+        print 'What is your {0}?  It is {1}.'.format(q, a)
+   
+What is your name?  It is lancelot.
+What is your quest?  It is the holy grail.
+What is your favorite color?  It is blue.
+
+To loop over a sequence in reverse, first specify the sequence in a forward direction and then call the reversed() function.
+>>>
+
+>>> for i in reversed(xrange(1,10,2)):
+        print i
+   
+9
+7
+5
+3
+1
+
+To loop over a sequence in sorted order, use the sorted() function which returns a new sorted list while leaving the source unaltered.
+>>>
+
+>>> basket = ['apple', 'orange', 'apple', 'pear', 'orange', 'banana']
+>>> for f in sorted(set(basket)):
+        print f
+   
+apple
+banana
+orange
+pear
+
+When looping through dictionaries, the key and corresponding value can be retrieved at the same time using the iteritems() method.
+>>>
+
+>>> knights = {'gallahad': 'the pure', 'robin': 'the brave'}
+>>> for k, v in knights.iteritems():
+        print k, v
+   
+gallahad the pure
+robin the brave
+
+It is sometimes tempting to change a list while you are looping over it; however, it is often simpler and safer to create a new list instead.
+>>>
+
+>>> import math
+>>> raw_data = [56.2, float('NaN'), 51.7, 55.3, 52.5, float('NaN'), 47.8]
+>>> filtered_data = []
+>>> for value in raw_data:
+        if not math.isnan(value):
+            filtered_data.append(value)
+   
+>>> filtered_data
+[56.2, 51.7, 55.3, 52.5, 47.8]
+
+5.7. More on Conditions
+
+The conditions used in while and if statements can contain any operators, not just comparisons.
+
+The comparison operators in and not in check whether a value occurs (does not occur) in a sequence. The operators is and is not compare whether two objects are really the same object; this only matters for mutable objects like lists. All comparison operators have the same priority, which is lower than that of all numerical operators.
+
+Comparisons can be chained. For example, a < b == c tests whether a is less than b and moreover b equals c.
+
+Comparisons may be combined using the Boolean operators and and or, and the outcome of a comparison (or of any other Boolean expression) may be negated with not. These have lower priorities than comparison operators; between them, not has the highest priority and or the lowest, so that A and not B or C is equivalent to (A and (not B)) or C. As always, parentheses can be used to express the desired composition.
+
+The Boolean operators and and or are so-called short-circuit operators: their arguments are evaluated from left to right, and evaluation stops as soon as the outcome is determined. For example, if A and C are true but B is false, A and B and C does not evaluate the expression C. When used as a general value and not as a Boolean, the return value of a short-circuit operator is the last evaluated argument.
+
+It is possible to assign the result of a comparison or other Boolean expression to a variable. For example,
+>>>
+
+>>> string1, string2, string3 = '', 'Trondheim', 'Hammer Dance'
+>>> non_null = string1 or string2 or string3
+>>> non_null
+'Trondheim'
+
+Note that in Python, unlike C, assignment cannot occur inside expressions. C programmers may grumble about this, but it avoids a common class of problems encountered in C programs: typing = in an expression when == was intended.
+5.8. Comparing Sequences and Other Types
+
+Sequence objects may be compared to other objects with the same sequence type. The comparison uses lexicographical ordering: first the first two items are compared, and if they differ this determines the outcome of the comparison; if they are equal, the next two items are compared, and so on, until either sequence is exhausted. If two items to be compared are themselves sequences of the same type, the lexicographical comparison is carried out recursively. If all items of two sequences compare equal, the sequences are considered equal. If one sequence is an initial sub-sequence of the other, the shorter sequence is the smaller (lesser) one. Lexicographical ordering for strings uses the ASCII ordering for individual characters. Some examples of comparisons between sequences of the same type:
+
+(1, 2, 3)              < (1, 2, 4)
+[1, 2, 3]              < [1, 2, 4]
+'ABC' < 'C' < 'Pascal' < 'Python'
+(1, 2, 3, 4)           < (1, 2, 4)
+(1, 2)                 < (1, 2, -1)
+(1, 2, 3)             == (1.0, 2.0, 3.0)
+(1, 2, ('aa', 'ab'))   < (1, 2, ('abc', 'a'), 4)
+
+Note that comparing objects of different types is legal. The outcome is deterministic but arbitrary: the types are ordered by their name. Thus, a list is always smaller than a string, a string is always smaller than a tuple, etc. [1] Mixed numeric types are compared according to their numeric value, so 0 equals 0.0, etc.
+
+## Modules/Packages
+
+Python has a way to put definitions in a file and use them in a script or in an interactive instance of the interpreter. Such a file is called a module; definitions from a module can be imported into other modules or into the main module (the collection of variables that you have access to in a script executed at the top level and in calculator mode).
+
+A module is a file containing Python definitions and statements. The file name is the module name with the suffix .py appended. Within a module, the module’s name (as a string) is available as the value of the global variable __name__. For instance, use your favorite text editor to create a file called fibo.py in the current directory with the following contents:
+
+# Fibonacci numbers module
+
+def fib(n):    # write Fibonacci series up to n
+    a, b = 0, 1
+    while b < n:
+        print(b, end=' ')
+        a, b = b, a+b
+    print()
+
+def fib2(n): # return Fibonacci series up to n
+    result = []
+    a, b = 0, 1
+    while b < n:
+        result.append(b)
+        a, b = b, a+b
+    return result
+
+Now enter the Python interpreter and import this module with the following command:
+>>>
+
+>>> import fibo
+
+This does not enter the names of the functions defined in fibo directly in the current symbol table; it only enters the module name fibo there. Using the module name you can access the functions:
+>>>
+
+>>> fibo.fib(1000)
+1 1 2 3 5 8 13 21 34 55 89 144 233 377 610 987
+>>> fibo.fib2(100)
+[1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89]
+>>> fibo.__name__
+'fibo'
+
+If you intend to use a function often you can assign it to a local name:
+>>> fib = fibo.fib
+>>> fib(500)
+1 1 2 3 5 8 13 21 34 55 89 144 233 377
+
+### More on Modules
+
+A module can contain executable statements as well as function definitions. These statements are intended to initialize the module. They are executed only the first time the module name is encountered in an import statement. [1] (They are also run if the file is executed as a script.)
+
+Each module has its own private symbol table, which is used as the global symbol table by all functions defined in the module. Thus, the author of a module can use global variables in the module without worrying about accidental clashes with a user’s global variables. On the other hand, if you know what you are doing you can touch a module’s global variables with the same notation used to refer to its functions, modname.itemname.
+
+Modules can import other modules. It is customary but not required to place all import statements at the beginning of a module (or script, for that matter). The imported module names are placed in the importing module’s global symbol table.
+
+There is a variant of the import statement that imports names from a module directly into the importing module’s symbol table. For example:
+
+from fibo import fib, fib2
+>>> fib(500)
+
+from fibo import *
+>>> fib(500)
+
+This imports all names except those beginning with an underscore (_). In most cases Python programmers do not use this facility since it introduces an unknown set of names into the interpreter, possibly hiding some things you have already defined.
+
+Executing modules as scripts
+
+When you run a Python module with
+
+python fibo.py <arguments>
+
+the code in the module will be executed, just as if you imported it, but with the __name__ set to "__main__". That means that by adding this code at the end of your module:
+
+if __name__ == "__main__":
+    import sys
+    fib(int(sys.argv[1]))
+
+you can make the file usable as a script as well as an importable module, because the code that parses the command line only runs if the module is executed as the “main” file:
+
+$ python fibo.py 50
+
+This is often used either to provide a convenient user interface to a module, or for testing purposes (running the module as a script executes a test suite).
+
+Python comes with a library of standard modules, described in a separate document, the Python Library Reference (“Library Reference” hereafter). Some modules are built into the interpreter; these provide access to operations that are not part of the core of the language but are nevertheless built in, either for efficiency or to provide access to operating system primitives such as system calls. The set of such modules is a configuration option which also depends on the underlying platform. For example, the winreg module is only provided on Windows systems. One particular module deserves some attention: sys, which is built into every Python interpreter. The variables sys.ps1 and sys.ps2 define the strings used as primary and secondary prompts:
+
+The variable sys.path is a list of strings that determines the interpreter’s search path for modules. It is initialized to a default path taken from the environment variable PYTHONPATH, or from a built-in default if PYTHONPATH is not set. You can modify it using standard list operations:
+
+>>> import sys
+>>> sys.path.append('/ufs/guido/lib/python')
+
+
+The dir() Function
+
+The built-in function dir() is used to find out which names a module defines. It returns a sorted list of strings:
+>>>
+
+>>> import fibo, sys
+>>> dir(fibo)
+['__name__', 'fib', 'fib2']
+>>> dir(sys)  
+['__displayhook__', '__doc__', '__egginsert', '__excepthook__',
+ '__loader__', '__name__', '__package__', '__plen', '__stderr__',
+<snip>
+
+Without arguments, dir() lists the names you have defined currently:
+>>>
+
+>>> a = [1, 2, 3, 4, 5]
+>>> import fibo
+>>> fib = fibo.fib
+>>> dir()
+['__builtins__', '__name__', 'a', 'fib', 'fibo', 'sys']
+
+Note that it lists all types of names: variables, modules, functions, etc.
+
+dir() does not list the names of built-in functions and variables. If you want a list of those, they are defined in the standard module builtins:
+>>>
+
+>>> import builtins
+>>> dir(builtins)  
+['ArithmeticError', 'AssertionError', 'AttributeError', 'BaseException',
+ 'BlockingIOError', 'BrokenPipeError', 'BufferError', 'BytesWarning',
+ <snip>
+ 
+ Packages
+
+### Packages are a way of structuring Python’s module namespace by using “dotted module names”. For example, the module name A.B designates a submodule named B in a package named A. Just like the use of modules saves the authors of different modules from having to worry about each other’s global variable names, the use of dotted module names saves the authors of multi-module packages like NumPy or the Python Imaging Library from having to worry about each other’s module names.
+
+sound/                          Top-level package
+      __init__.py               Initialize the sound package
+      formats/                  Subpackage for file format conversions
+              __init__.py
+              wavread.py
+              wavwrite.py
+              aiffread.py
+              aiffwrite.py
+              auread.py
+              auwrite.py
+                 
+      effects/                  Subpackage for sound effects
+              __init__.py
+              echo.py
+              surround.py
+              reverse.py
+                 
+      filters/                  Subpackage for filters
+              __init__.py
+              equalizer.py
+              vocoder.py
+              karaoke.py
+                 
+
+When importing the package, Python searches through the directories on sys.path looking for the package subdirectory.
+
+The __init__.py files are required to make Python treat the directories as containing packages; this is done to prevent directories with a common name, such as string, from unintentionally hiding valid modules that occur later on the module search path. In the simplest case, __init__.py can just be an empty file, but it can also execute initialization code for the package or set the __all__ variable, described later.
+
+Users of the package can import individual modules from the package, for example:
+
+import sound.effects.echo
+
+This loads the submodule sound.effects.echo. It must be referenced with its full name.
+
+sound.effects.echo.echofilter(input, output, delay=0.7, atten=4)
+
+An alternative way of importing the submodule is:
+
+from sound.effects import echo
+
+This also loads the submodule echo, and makes it available without its package prefix, so it can be used as follows:
+
+echo.echofilter(input, output, delay=0.7, atten=4)
+
+Yet another variation is to import the desired function or variable directly:
+
+from sound.effects.echo import echofilter
+
+Again, this loads the submodule echo, but this makes its function echofilter() directly available:
+
+echofilter(input, output, delay=0.7, atten=4)
+
+Note that when using from package import item, the item can be either a submodule (or subpackage) of the package, or some other name defined in the package, like a function, class or variable. The import statement first tests whether the item is defined in the package; if not, it assumes it is a module and attempts to load it. If it fails to find it, an ImportError exception is raised.
+
+Contrarily, when using syntax like import item.subitem.subsubitem, each item except for the last must be a package; the last item can be a module or a package but can’t be a class or function or variable defined in the previous item.
+6.4.1. Importing * From a Package
+
+Now what happens when the user writes from sound.effects import *? Ideally, one would hope that this somehow goes out to the filesystem, finds which submodules are present in the package, and imports them all. This could take a long time and importing sub-modules might have unwanted side-effects that should only happen when the sub-module is explicitly imported.
+
+The only solution is for the package author to provide an explicit index of the package. The import statement uses the following convention: if a package’s __init__.py code defines a list named __all__, it is taken to be the list of module names that should be imported when from package import * is encountered. It is up to the package author to keep this list up-to-date when a new version of the package is released. Package authors may also decide not to support it, if they don’t see a use for importing * from their package. For example, the file sound/effects/__init__.py could contain the following code:
+
+__all__ = ["echo", "surround", "reverse"]
+
+This would mean that from sound.effects import * would import the three named submodules of the sound package.
+
+If __all__ is not defined, the statement from sound.effects import * does not import all submodules from the package sound.effects into the current namespace; it only ensures that the package sound.effects has been imported (possibly running any initialization code in __init__.py) and then imports whatever names are defined in the package. This includes any names defined (and submodules explicitly loaded) by __init__.py. It also includes any submodules of the package that were explicitly loaded by previous import statements. Consider this code:
+
+import sound.effects.echo
+import sound.effects.surround
+from sound.effects import *
+
+In this example, the echo and surround modules are imported in the current namespace because they are defined in the sound.effects package when the from   import statement is executed. (This also works when __all__ is defined.)
+
+
+
+## Input and Output
+
+Often you’ll want more control over the formatting of your output than simply printing space-separated values. There are two ways to format your output; the first way is to do all the string handling yourself; using string slicing and concatenation operations you can create any layout you can imagine. The string type has some methods that perform useful operations for padding strings to a given column width; these will be discussed shortly. The second way is to use the str.format() method.
+
+The string module contains a Template class which offers yet another way to substitute values into strings.
+
+One question remains, of course: how do you convert values to strings? Luckily, Python has ways to convert any value to a string: pass it to the repr() or str() functions.
+
+The str() function is meant to return representations of values which are fairly human-readable, while repr() is meant to generate representations which can be read by the interpreter (or will force a SyntaxError if there is no equivalent syntax). For objects which don’t have a particular representation for human consumption, str() will return the same value as repr(). Many values, such as numbers or structures like lists and dictionaries, have the same representation using either function. Strings, in particular, have two distinct representations.
+
+Here are two ways to write a table of squares and cubes:
+>>>
+
+>>> for x in range(1, 11):
+        print(repr(x).rjust(2), repr(x*x).rjust(3), end=' ')
+        # Note use of 'end' on previous line
+        print(repr(x*x*x).rjust(4))
+   
+ 1   1    1
+ 2   4    8
+<snip>
+10 100 1000
+
+>>> for x in range(1, 11):
+        print('{0:2d} {1:3d} {2:4d}'.format(x, x*x, x*x*x))
+
+ 1   1    1
+<snip>
+ 9  81  729
+10 100 1000
+
+(Note that in the first example, one space between each column was added by the way print() works: it always adds spaces between its arguments.)
+
+str.zfill()  pads a numeric string on the left with zeros. It understands about plus and minus signs:
+
+>>> '12'.zfill(5)
+'00012'
+>>> '-3.14'.zfill(7)
+'-003.14'
+>>> '3.14159265359'.zfill(5)
+'3.14159265359'
+
+Basic usage of the str.format() method looks like this:
+>>>
+
+>>> print('We are the {} who say "{}!"'.format('knights', 'Ni'))
+We are the knights who say "Ni!"
+
+The brackets and characters within them (called format fields) are replaced with the objects passed into the str.format() method. A number in the brackets can be used to refer to the position of the object passed into the str.format() method.
+>>>
+
+>>> print('{0} and {1}'.format('spam', 'eggs'))
+spam and eggs
+
+Positional and keyword arguments can be arbitrarily combined:
+>>>
+
+>>> print('The story of {0}, {1}, and {other}.'.format('Bill', 'Manfred',
+                                                       other='Georg'))
+The story of Bill, Manfred, and Georg.
+
+'!a' (apply ascii()), '!s' (apply str()) and '!r' (apply repr()) can be used to convert the value before it is formatted:
+>>>
+
+>>> import math
+>>> print('The value of PI is approximately {}.'.format(math.pi))
+The value of PI is approximately 3.14159265359.
+>>> print('The value of PI is approximately {!r}.'.format(math.pi))
+The value of PI is approximately 3.141592653589793.
+
+An optional ':' and format specifier can follow the field name. This allows greater control over how the value is formatted. The following example rounds Pi to three places after the decimal.
+>>>
+
+>>> import math
+>>> print('The value of PI is approximately {0:.3f}.'.format(math.pi))
+The value of PI is approximately 3.142.
+
+Passing an integer after the ':' will cause that field to be a minimum number of characters wide. This is useful for making tables pretty.
+>>>
+
+>>> table = {'Sjoerd': 4127, 'Jack': 4098, 'Dcab': 7678}
+>>> for name, phone in table.items():
+        print('{0:10} ==> {1:10d}'.format(name, phone))
+   
+Jack       ==>       4098
+Dcab       ==>       7678
+Sjoerd     ==>       4127
+
+For a complete overview of string formatting with str.format(), see https://docs.python.org/3.3/library/string.html#formatstrings
+
+
+
+## Reading and Writing Files
+
+open() returns a file object, and is most commonly used with two arguments: open(filename, mode).
+
+>>> f = open('workfile', 'w')
+
+The first argument is a string containing the filename. The second argument is another string containing a few characters describing the way in which the file will be used. mode can be 'r' when the file will only be read, 'w' for only writing (an existing file with the same name will be erased), and 'a' opens the file for appending; any data written to the file is automatically added to the end. 'r+' opens the file for both reading and writing. The mode argument is optional; 'r' will be assumed if it’s omitted.
+
+Normally, files are opened in text mode, that means, you read and write strings from and to the file, which are encoded in a specific encoding (the default being UTF-8). 'b' appended to the mode opens the file in binary mode: now the data is read and written in the form of bytes objects. This mode should be used for all files that don’t contain text.
+
+Methods of File Objects
+
+The rest of the examples in this section will assume that a file object called f has already been created.
+
+To read a file’s contents, call f.read(size), which reads some quantity of data and returns it as a string or bytes object. size is an optional numeric argument. When size is omitted or negative, the entire contents of the file will be read and returned; it’s your problem if the file is twice as large as your machine’s memory. Otherwise, at most size bytes are read and returned. If the end of the file has been reached, f.read() will return an empty string ('').
+>>>
+
+>>> f.read()
+'This is the entire file.\n'
+>>> f.read()
+''
+
+f.readline() reads a single line from the file; a newline character (\n) is left at the end of the string, and is only omitted on the last line of the file if the file doesn’t end in a newline. This makes the return value unambiguous; if f.readline() returns an empty string, the end of the file has been reached, while a blank line is represented by '\n', a string containing only a single newline.
+
+>>> f.readline()
+'This is the first line of the file.\n'
+>>> f.readline()
+'Second line of the file\n'
+>>> f.readline()
+''
+
+For reading lines from a file, you can loop over the file object. This is memory efficient, fast, and leads to simple code:
+>>>
+
+>>> for line in f:
+        print(line, end='')
+   
+This is the first line of the file.
+Second line of the file
+
+If you want to read all the lines of a file in a list you can also use list(f) or f.readlines().
+
+f.write(string) writes the contents of string to the file, returning the number of characters written.
+>>>
+
+>>> f.write('This is a test\n')
+15
+
+To write something other than a string, it needs to be converted to a string first:
+
+>>> value = ('the answer', 42)
+>>> s = str(value)
+>>> f.write(s)
+18
+
+hen you’re done with a file, call f.close() to close it and free up any system resources taken up by the open file. After calling f.close(), attempts to use the file object will automatically fail.
+>>>
+
+>>> f.close()
+>>> f.read()
+Traceback (most recent call last):
+  File "<stdin>", line 1, in ?
+ValueError: I/O operation on closed file
+
+It is good practice to use the with keyword when dealing with file objects. This has the advantage that the file is properly closed after its suite finishes, even if an exception is raised on the way. It is also much shorter than writing equivalent try-finally blocks:
+
+>>> with open('workfile', 'r') as f:
+        read_data = f.read()
+>>> f.closed
+True
+
+
+## Saving structured data with json
+
+Strings can easily be written to and read from a file. Numbers take a bit more effort, since the read() method only returns strings, which will have to be passed to a function like int(), which takes a string like '123' and returns its numeric value 123. When you want to save more complex data types like nested lists and dictionaries, parsing and serializing by hand becomes complicated.
+
+Rather than having users constantly writing and debugging code to save complicated data types to files, Python allows you to use the popular data interchange format called JSON (JavaScript Object Notation). The standard module called json can take Python data hierarchies, and convert them to string representations; this process is called serializing. Reconstructing the data from the string representation is called deserializing. Between serializing and deserializing, the string representing the object may have been stored in a file or data, or sent over a network connection to some distant machine.
+
+Note
+
+The JSON format is commonly used by modern applications to allow for data exchange. Many programmers are already familiar with it, which makes it a good choice for interoperability.
+
+If you have an object x, you can view its JSON string representation with a simple line of code:
+>>>
+
+>>> json.dumps([1, 'simple', 'list'])
+'[1, "simple", "list"]'
+
+Another variant of the dumps() function, called dump(), simply serializes the object to a text file. So if f is a text file object opened for writing, we can do this:
+
+json.dump(x, f)
+
+To decode the object again, if f is a text file object which has been opened for reading:
+
+x = json.load(f)
+
+## Errors and Exceptions
+
+There are (at least) two distinguishable kinds of errors: syntax errors and exceptions.
+Syntax errors, also known as parsing errors, are perhaps the most common kind of complaint you get while you are still learning Python.
+Errors detected during execution are called exceptions and are not unconditionally fatal.
+
+Handling Exceptions
+
+It is possible to write programs that handle selected exceptions. Look at the following example, which asks the user for input until a valid integer has been entered, but allows the user to interrupt the program (using Control-C or whatever the operating system supports); note that a user-generated interruption is signalled by raising the KeyboardInterrupt exception.
+>>>
+
+>>> while True:
+        try:
+            x = int(input("Please enter a number: "))
+            break
+        except ValueError:
+            print("Oops!  That was no valid number.  Try again   ")
+   
+
+The try statement works as follows.
+
+    First, the try clause (the statement(s) between the try and except keywords) is executed.
+    If no exception occurs, the except clause is skipped and execution of the try statement is finished.
+    If an exception occurs during execution of the try clause, the rest of the clause is skipped. Then if its type matches the exception named after the except keyword, the except clause is executed, and then execution continues after the try statement.
+    If an exception occurs which does not match the exception named in the except clause, it is passed on to outer try statements; if no handler is found, it is an unhandled exception and execution stops with a message as shown above.
+
+A try statement may have more than one except clause, to specify handlers for different exceptions. At most one handler will be executed. Handlers only handle exceptions that occur in the corresponding try clause, not in other handlers of the same try statement. An except clause may name multiple exceptions as a parenthesized tuple, for example:
+
+A try statement may have more than one except clause, to specify handlers for different exceptions. At most one handler will be executed. Handlers only handle exceptions that occur in the corresponding try clause, not in other handlers of the same try statement. An except clause may name multiple exceptions as a parenthesized tuple, for example:
+
+    except (RuntimeError, TypeError, NameError):
+        pass
+
+The last except clause may omit the exception name(s), to serve as a wildcard. Use this with extreme caution, since it is easy to mask a real programming error in this way! It can also be used to print an error message and then re-raise the exception (allowing a caller to handle the exception as well):
+
+import sys
+
+try:
+    f = open('myfile.txt')
+    s = f.readline()
+    i = int(s.strip())
+except IOError as err:
+    print("I/O error: {0}".format(err))
+except ValueError:
+    print("Could not convert data to an integer.")
+except:
+    print("Unexpected error:", sys.exc_info()[0])
+    raise
+
+The try     except statement has an optional else clause, which, when present, must follow all except clauses. It is useful for code that must be executed if the try clause does not raise an exception. For example:
+
+for arg in sys.argv[1:]:
+    try:
+        f = open(arg, 'r')
+    except IOError:
+        print('cannot open', arg)
+    else:
+        print(arg, 'has', len(f.readlines()), 'lines')
+        f.close()
+
+The use of the else clause is better than adding additional code to the try clause because it avoids accidentally catching an exception that wasn’t raised by the code being protected by the try     except statement.
+
+When an exception occurs, it may have an associated value, also known as the exception’s argument. The presence and type of the argument depend on the exception type.
+
+The except clause may specify a variable after the exception name. The variable is bound to an exception instance with the arguments stored in instance.args. For convenience, the exception instance defines __str__() so the arguments can be printed directly without having to reference .args. One may also instantiate an exception first before raising it and add any attributes to it as desired.
+>>>
+
+>>> try:
+       raise Exception('spam', 'eggs')
+    except Exception as inst:
+       print(type(inst))    # the exception instance
+       print(inst.args)     # arguments stored in .args
+       print(inst)          # __str__ allows args to be printed directly,
+                            # but may be overridden in exception subclasses
+       x, y = inst.args     # unpack args
+       print('x =', x)
+       print('y =', y)
+   
+<class 'Exception'>
+('spam', 'eggs')
+('spam', 'eggs')
+x = spam
+y = eggs
+
+If an exception has arguments, they are printed as the last part (‘detail’) of the message for unhandled exceptions.
+
+Exception handlers don’t just handle exceptions if they occur immediately in the try clause, but also if they occur inside functions that are called (even indirectly) in the try clause. For example:
+>>>
+
+>>> def this_fails():
+        x = 1/0
+   
+>>> try:
+        this_fails()
+    except ZeroDivisionError as err:
+        print('Handling run-time error:', err)
+   
+Handling run-time error: int division or modulo by zero
+
+
+Raising Exceptions
+
+The raise statement allows the programmer to force a specified exception to occur. For example:
+>>>
+
+>>> raise NameError('HiThere')
+Traceback (most recent call last):
+  File "<stdin>", line 1, in ?
+NameError: HiThere
+
+The sole argument to raise indicates the exception to be raised. This must be either an exception instance or an exception class (a class that derives from Exception).
+
+If you need to determine whether an exception was raised but don’t intend to handle it, a simpler form of the raise statement allows you to re-raise the exception:
+>>>
+
+>>> try:
+        raise NameError('HiThere')
+    except NameError:
+        print('An exception flew by!')
+        raise
+   
+An exception flew by!
+Traceback (most recent call last):
+  File "<stdin>", line 2, in ?
+NameError: HiThere
+
+8.5. User-defined Exceptions
+
+Programs may name their own exceptions by creating a new exception class (see Classes for more about Python classes). Exceptions should typically be derived from the Exception class, either directly or indirectly. For example:
+>>>
+
+>>> class MyError(Exception):
+        def __init__(self, value):
+            self.value = value
+        def __str__(self):
+            return repr(self.value)
+   
+>>> try:
+        raise MyError(2*2)
+    except MyError as e:
+        print('My exception occurred, value:', e.value)
+   
+My exception occurred, value: 4
+>>> raise MyError('oops!')
+Traceback (most recent call last):
+  File "<stdin>", line 1, in ?
+__main__.MyError: 'oops!'
+
+In this example, the default __init__() of Exception has been overridden. The new behavior simply creates the value attribute. This replaces the default behavior of creating the args attribute.
+
+efining Clean-up Actions
+
+The try statement has another optional clause which is intended to define clean-up actions that must be executed under all circumstances. For example:
+>>>
+
+>>> try:
+        raise KeyboardInterrupt
+    finally:
+        print('Goodbye, world!')
+   
+Goodbye, world!
+KeyboardInterrupt
+
+A finally clause is always executed before leaving the try statement, whether an exception has occurred or not. When an exception has occurred in the try clause and has not been handled by an except clause (or it has occurred in a except or else clause), it is re-raised after the finally clause has been executed. The finally clause is also executed “on the way out” when any other clause of the try statement is left via a break, continue or return statement. A more complicated example:
+
+
+Operating System Interface
+
+The os module provides dozens of functions for interacting with the operating system:
+>>>
+
+>>> import os
+>>> os.getcwd()      # Return the current working directory
+'C:\\Python26'
+>>> os.chdir('/server/accesslogs')   # Change current working directory
+>>> os.system('mkdir today')   # Run the command mkdir in the system shell
+0
+
+Be sure to use the import os style instead of from os import *. This will keep os.open() from shadowing the built-in open() function which operates much differently.
+
+The built-in dir() and help() functions are useful as interactive aids for working with large modules like os:
+>>>
+
+>>> import os
+>>> dir(os)
+<returns a list of all module functions>
+>>> help(os)
+<returns an extensive manual page created from the module's docstrings>
+
+For daily file and directory management tasks, the shutil module provides a higher level interface that is easier to use:
+>>>
+
+>>> import shutil
+>>> shutil.copyfile('data.db', 'archive.db')
+>>> shutil.move('/build/executables', 'installdir')
+
+10.2. File Wildcards
+
+The glob module provides a function for making file lists from directory wildcard searches:
+>>>
+
+>>> import glob
+>>> glob.glob('*.py')
+['primes.py', 'random.py', 'quote.py']
+
+10.3. Command Line Arguments
+
+Common utility scripts often need to process command line arguments. These arguments are stored in the sys module’s argv attribute as a list. For instance the following output results from running python demo.py one two three at the command line:
+>>>
+
+>>> import sys
+>>> print sys.argv
+['demo.py', 'one', 'two', 'three']
+
+The getopt module processes sys.argv using the conventions of the Unix getopt() function. More powerful and flexible command line processing is provided by the argparse module.
+10.4. Error Output Redirection and Program Termination
+
+The sys module also has attributes for stdin, stdout, and stderr. The latter is useful for emitting warnings and error messages to make them visible even when stdout has been redirected:
+>>>
+
+>>> sys.stderr.write('Warning, log file not found starting a new one\n')
+Warning, log file not found starting a new one
+
+The most direct way to terminate a script is to use sys.exit().
+10.5. String Pattern Matching
+
+The re module provides regular expression tools for advanced string processing. For complex matching and manipulation, regular expressions offer succinct, optimized solutions:
+>>>
+
+>>> import re
+>>> re.findall(r'\bf[a-z]*', 'which foot or hand fell fastest')
+['foot', 'fell', 'fastest']
+>>> re.sub(r'(\b[a-z]+) \1', r'\1', 'cat in the the hat')
+'cat in the hat'
+
+When only simple capabilities are needed, string methods are preferred because they are easier to read and debug:
+>>>
+
+>>> 'tea for too'.replace('too', 'two')
+'tea for two'
+
+10.6. Mathematics
+
+The math module gives access to the underlying C library functions for floating point math:
+>>>
+
+>>> import math
+>>> math.cos(math.pi / 4.0)
+0.70710678118654757
+>>> math.log(1024, 2)
+10.0
+
+The random module provides tools for making random selections:
+>>>
+
+>>> import random
+>>> random.choice(['apple', 'pear', 'banana'])
+'apple'
+>>> random.sample(xrange(100), 10)   # sampling without replacement
+[30, 83, 16, 4, 8, 81, 41, 50, 18, 33]
+>>> random.random()    # random float
+0.17970987693706186
+>>> random.randrange(6)    # random integer chosen from range(6)
+4
+
+10.7. Internet Access
+
+There are a number of modules for accessing the internet and processing internet protocols. Two of the simplest are urllib2 for retrieving data from URLs and smtplib for sending mail:
+>>>
+
+>>> import urllib2
+>>> for line in urllib2.urlopen('http://tycho.usno.navy.mil/cgi-bin/timer.pl'):
+        if 'EST' in line or 'EDT' in line:  # look for Eastern Time
+            print line
+
+<BR>Nov. 25, 09:43:32 PM EST
+
+>>> import smtplib
+>>> server = smtplib.SMTP('localhost')
+>>> server.sendmail('soothsayer@example.org', 'jcaesar@example.org',
+    """To: jcaesar@example.org
+    From: soothsayer@example.org
+   
+    Beware the Ides of March.
+    """)
+>>> server.quit()
+
+(Note that the second example needs a mailserver running on localhost.)
+10.8. Dates and Times
+
+The datetime module supplies classes for manipulating dates and times in both simple and complex ways. While date and time arithmetic is supported, the focus of the implementation is on efficient member extraction for output formatting and manipulation. The module also supports objects that are timezone aware.
+>>>
+
+>>> # dates are easily constructed and formatted
+>>> from datetime import date
+>>> now = date.today()
+>>> now
+datetime.date(2003, 12, 2)
+>>> now.strftime("%m-%d-%y. %d %b %Y is a %A on the %d day of %B.")
+'12-02-03. 02 Dec 2003 is a Tuesday on the 02 day of December.'
+
+>>> # dates support calendar arithmetic
+>>> birthday = date(1964, 7, 31)
+>>> age = now - birthday
+>>> age.days
+14368
+
