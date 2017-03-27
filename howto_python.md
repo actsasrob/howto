@@ -349,9 +349,10 @@ We can create a function that writes the Fibonacci series to an arbitrary bounda
         while a < n:
             print a,
             a, b = b, a+b
-  
-``` 
->>> # Now call the function we just defined:
+```  
+ 
+Now call the function we just defined:
+```
     fib(2000)
 0 1 1 2 3 5 8 13 21 34 55 89 144 233 377 610 987 1597
 ```
