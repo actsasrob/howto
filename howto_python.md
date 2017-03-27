@@ -466,19 +466,19 @@ Arbitrary Argument Lists
 Finally, the least frequently used option is to specify that a function can be called with an arbitrary number of arguments. These arguments will be wrapped up in a tuple (see Tuples and Sequences). Before the variable number of arguments, zero or more normal arguments may occur.
 
 ```
-def write_multiple_items(file, separator, \*args):
+def write_multiple_items(file, separator, *args):
     file.write(separator.join(args))
 ```
 
 ### 4.7.4. Unpacking Argument Lists
 
-The reverse situation occurs when the arguments are already in a list or tuple but need to be unpacked for a function call requiring separate positional arguments. For instance, the built-in range() function expects separate start and stop arguments. If they are not available separately, write the function call with the *-operator to unpack the arguments out of a list or tuple:
+The reverse situation occurs when the arguments are already in a list or tuple but need to be unpacked for a function call requiring separate positional arguments. For instance, the built-in range() function expects separate start and stop arguments. If they are not available separately, write the function call with the \*-operator to unpack the arguments out of a list or tuple:
 
 ```
 >>> range(3, 6)             # normal call with separate arguments
 [3, 4, 5]
 >>> args = [3, 6]
->>> range(\*args)            # call with arguments unpacked from a list
+>>> range(*args)            # call with arguments unpacked from a list
 [3, 4, 5]
 ```
 In the same fashion, dictionaries can deliver keyword arguments with the \*\*-operator:
