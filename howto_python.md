@@ -956,8 +956,7 @@ Python also includes a data type for sets. A set is an unordered collection with
 Curly braces or the set() function can be used to create sets. Note: to create an empty set you have to use set(), not {}; the latter creates an empty dictionary, a data structure that we discuss in the next section.
 
 Here is a brief demonstration:
->>>
-
+```
 >>> basket = ['apple', 'orange', 'apple', 'pear', 'orange', 'banana']
 >>> fruit = set(basket)               # create a set without duplicates
 >>> fruit
@@ -966,9 +965,10 @@ set(['orange', 'pear', 'apple', 'banana'])
 True
 >>> 'crabgrass' in fruit
 False
+```
 
->>> # Demonstrate set operations on unique letters from two words
-   
+Demonstrate set operations on unique letters from two words
+```   
 >>> a = set('abracadabra')
 >>> b = set('alacazam')
 >>> a                                  # unique letters in a
@@ -981,15 +981,16 @@ set(['a', 'c', 'r', 'd', 'b', 'm', 'z', 'l'])
 set(['a', 'c'])
 >>> a ^ b                              # letters in a or b but not both
 set(['r', 'd', 'b', 'm', 'z', 'l'])
+```
 
 Similarly to list comprehensions, set comprehensions are also supported:
->>>
-
+```
 >>> a = {x for x in 'abracadabra' if x not in 'abc'}
 >>> a
 set(['r', 'd'])
+```
 
-5.5. Dictionaries
+### 5.5. Dictionaries
 
 Another useful data type built into Python is the dictionary (see Mapping Types — dict). Dictionaries are sometimes found in other languages as “associative memories” or “associative arrays”. Unlike sequences, which are indexed by a range of numbers, dictionaries are indexed by keys, which can be any immutable type; strings and numbers can always be keys. Tuples can be used as keys if they contain only strings, numbers, or tuples; if a tuple contains any mutable object either directly or indirectly, it cannot be used as a key. You can’t use lists as keys, since lists can be modified in place using index assignments, slice assignments, or methods like append() and extend().
 
@@ -1000,8 +1001,7 @@ The main operations on a dictionary are storing a value with some key and extrac
 The keys() method of a dictionary object returns a list of all the keys used in the dictionary, in arbitrary order (if you want it sorted, just apply the sorted() function to it). To check whether a single key is in the dictionary, use the in keyword.
 
 Here is a small example using a dictionary:
->>>
-
+```
 >>> tel = {'jack': 4098, 'sape': 4139}
 >>> tel['guido'] = 4127
 >>> tel
@@ -1016,40 +1016,44 @@ Here is a small example using a dictionary:
 ['guido', 'irv', 'jack']
 >>> 'guido' in tel
 True
+```
 
 The dict() constructor builds dictionaries directly from sequences of key-value pairs:
->>>
 
->>> dict([('sape', 4139), ('guido', 4127), ('jack', 4098)])
+```
+dict([('sape', 4139), ('guido', 4127), ('jack', 4098)])
 {'sape': 4139, 'jack': 4098, 'guido': 4127}
+```
 
 In addition, dict comprehensions can be used to create dictionaries from arbitrary key and value expressions:
->>>
 
->>> {x: x**2 for x in (2, 4, 6)}
+```
+{x: x**2 for x in (2, 4, 6)}
 {2: 4, 4: 16, 6: 36}
+```
+
+b**
 
 When the keys are simple strings, it is sometimes easier to specify pairs using keyword arguments:
->>>
-
->>> dict(sape=4139, guido=4127, jack=4098)
+```
+dict(sape=4139, guido=4127, jack=4098)
 {'sape': 4139, 'jack': 4098, 'guido': 4127}
+```
 
-5.6. Looping Techniques
+### 5.6. Looping Techniques
 
 When looping through a sequence, the position index and corresponding value can be retrieved at the same time using the enumerate() function.
->>>
-
+```
 >>> for i, v in enumerate(['tic', 'tac', 'toe']):
         print i, v
    
 0 tic
 1 tac
 2 toe
+```
 
 To loop over two or more sequences at the same time, the entries can be paired with the zip() function.
->>>
-
+```
 >>> questions = ['name', 'quest', 'favorite color']
 >>> answers = ['lancelot', 'the holy grail', 'blue']
 >>> for q, a in zip(questions, answers):
@@ -1058,10 +1062,10 @@ To loop over two or more sequences at the same time, the entries can be paired w
 What is your name?  It is lancelot.
 What is your quest?  It is the holy grail.
 What is your favorite color?  It is blue.
+```
 
 To loop over a sequence in reverse, first specify the sequence in a forward direction and then call the reversed() function.
->>>
-
+```
 >>> for i in reversed(xrange(1,10,2)):
         print i
    
@@ -1070,10 +1074,11 @@ To loop over a sequence in reverse, first specify the sequence in a forward dire
 5
 3
 1
+```
 
 To loop over a sequence in sorted order, use the sorted() function which returns a new sorted list while leaving the source unaltered.
->>>
 
+```
 >>> basket = ['apple', 'orange', 'apple', 'pear', 'orange', 'banana']
 >>> for f in sorted(set(basket)):
         print f
@@ -1082,20 +1087,20 @@ apple
 banana
 orange
 pear
+```
 
 When looping through dictionaries, the key and corresponding value can be retrieved at the same time using the iteritems() method.
->>>
-
+```
 >>> knights = {'gallahad': 'the pure', 'robin': 'the brave'}
 >>> for k, v in knights.iteritems():
         print k, v
    
 gallahad the pure
 robin the brave
+```
 
 It is sometimes tempting to change a list while you are looping over it; however, it is often simpler and safer to create a new list instead.
->>>
-
+```
 >>> import math
 >>> raw_data = [56.2, float('NaN'), 51.7, 55.3, 52.5, float('NaN'), 47.8]
 >>> filtered_data = []
@@ -1105,8 +1110,9 @@ It is sometimes tempting to change a list while you are looping over it; however
    
 >>> filtered_data
 [56.2, 51.7, 55.3, 52.5, 47.8]
+```
 
-5.7. More on Conditions
+## 5.7. More on Conditions
 
 The conditions used in while and if statements can contain any operators, not just comparisons.
 
