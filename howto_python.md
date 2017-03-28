@@ -541,7 +541,6 @@ def my_function():
    
 print my_function.__doc__
 Do nothing, but document it.
-```
 
     No, really, it doesn't do anything.
 ```
@@ -775,11 +774,12 @@ and it’s equivalent to:
 >>> combs
 [(1, 3), (1, 4), (2, 3), (2, 1), (2, 4), (3, 1), (3, 4)]
 ```
+
 Note how the order of the for and if statements is the same in both these snippets.
 
 If the expression is a tuple (e.g. the (x, y) in the previous example), it must be parenthesized.
->>>
 
+```
 >>> vec = [-4, -2, 0, 2, 4]
 >>> # create a new list with the values doubled
 >>> [x*2 for x in vec]
@@ -807,15 +807,18 @@ SyntaxError: invalid syntax
 >>> vec = [[1,2,3], [4,5,6], [7,8,9]]
 >>> [num for elem in vec for num in elem]
 [1, 2, 3, 4, 5, 6, 7, 8, 9]
+```
 
 List comprehensions can contain complex expressions and nested functions:
->>>
 
+```
 >>> from math import pi
 >>> [str(round(pi, i)) for i in range(1, 6)]
 ['3.1', '3.14', '3.142', '3.1416', '3.14159']
 
-5.1.4.1. Nested List Comprehensions
+```
+
+### 5.1.4.1. Nested List Comprehensions
 
 The initial expression in a list comprehension can be any arbitrary expression, including another list comprehension.
 
