@@ -551,58 +551,51 @@ This chapter describes some things you’ve learned about already in more detail
 ### 5.1. More on Lists
 
 The list data type has some more methods. Here are all of the methods of list objects:
+
+Add an item to the end of the list; equivalent to a[len(a):] = [x].
 ```
 list.append(x)
 ```
-    Add an item to the end of the list; equivalent to a[len(a):] = [x].
 
+Extend the list by appending all the items in the given list; equivalent to a[len(a):] = L.
 ```
 list.extend(L)
 ```
 
-    Extend the list by appending all the items in the given list; equivalent to a[len(a):] = L.
-
+Insert an item at a given position. The first argument is the index of the element before which to insert, so a.insert(0, x) inserts at the front of the list, and a.insert(len(a), x) is equivalent to a.append(x).
 ```
 list.insert(i, x)
 ```
 
-    Insert an item at a given position. The first argument is the index of the element before which to insert, so a.insert(0, x) inserts at the front of the list, and a.insert(len(a), x) is equivalent to a.append(x).
-
+Remove the first item from the list whose value is x. It is an error if there is no such item.
 ```
 list.remove(x)
 ```
 
-    Remove the first item from the list whose value is x. It is an error if there is no such item.
-
+Remove the item at the given position in the list, and return it. If no index is specified, a.pop() removes and returns the last item in the list. (The square brackets around the i in the method signature denote that the parameter is optional, not that you should type square brackets at that position. You will see this notation frequently in the Python Library Reference.)
 ```
 list.pop([i])
 ```
 
-    Remove the item at the given position in the list, and return it. If no index is specified, a.pop() removes and returns the last item in the list. (The square brackets around the i in the method signature denote that the parameter is optional, not that you should type square brackets at that position. You will see this notation frequently in the Python Library Reference.)
-
+Return the index in the list of the first item whose value is x. It is an error if there is no such item.
 ```
 list.index(x)
 ```
 
-    Return the index in the list of the first item whose value is x. It is an error if there is no such item.
-
+Return the number of times x appears in the list.
 ```
 list.count(x)
 ```
 
-    Return the number of times x appears in the list.
-
+Sort the items of the list in place (the arguments can be used for sort customization, see sorted() for their explanation).
 ```
 list.sort(cmp=None, key=None, reverse=False)
 ```
 
-    Sort the items of the list in place (the arguments can be used for sort customization, see sorted() for their explanation).
-
+Reverse the elements of the list, in place.
 ```
 list.reverse()
 ```
-
-    Reverse the elements of the list, in place.
 
 An example that uses most of the list methods:
 
@@ -720,7 +713,7 @@ If there’s only one item in the sequence, its value is returned; if the sequen
 
 A third argument can be passed to indicate the starting value. In this case the starting value is returned for an empty sequence, and the function is first applied to the starting value and the first sequence item, then to the result and the next item, and so on. For example,
 
-````
+```
 def sum(seq):
     def add(x,y): return x+y
     return reduce(add, seq, 0)
