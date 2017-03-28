@@ -490,7 +490,7 @@ In the same fashion, dictionaries can deliver keyword arguments with the \*\*-op
         print "E's", state, "!"
    
 >>> d = {"voltage": "four million", "state": "bleedin' demised", "action": "VOOM"}
->>> parrot(\*\*d)
+>>> parrot(**d)
 -- This parrot wouldn't VOOM if you put four million volts through it. E's bleedin' demised !
 ```
 
@@ -530,67 +530,84 @@ If there are more lines in the documentation string, the second line should be b
 The Python parser does not strip indentation from multi-line string literals in Python, so tools that process documentation have to strip indentation if desired. This is done using the following convention. The first non-blank line after the first line of the string determines the amount of indentation for the entire documentation string. (We can’t use the first line since it is generally adjacent to the string’s opening quotes so its indentation is not apparent in the string literal.) Whitespace “equivalent” to this indentation is then stripped from the start of all lines of the string. Lines that are indented less should not occur, but if they occur all their leading whitespace should be stripped. Equivalence of whitespace should be tested after expansion of tabs (to 8 spaces, normally).
 
 Here is an example of a multi-line docstring:
->>>
 
->>> def my_function():
-        """Do nothing, but document it.
+```
+def my_function():
+     """Do nothing, but document it.
+ 
+     No, really, it doesn't do anything.
+     """
+     pass
    
-        No, really, it doesn't do anything.
-        """
-        pass
-   
->>> print my_function.__doc__
+print my_function.__doc__
 Do nothing, but document it.
+```
 
     No, really, it doesn't do anything.
+```
 
-
-Data Structures
+## Data Structures
 
 This chapter describes some things you’ve learned about already in more detail, and adds some new things as well.
-5.1. More on Lists
+### 5.1. More on Lists
 
 The list data type has some more methods. Here are all of the methods of list objects:
-
+```
 list.append(x)
-
+```
     Add an item to the end of the list; equivalent to a[len(a):] = [x].
 
+```
 list.extend(L)
+```
 
     Extend the list by appending all the items in the given list; equivalent to a[len(a):] = L.
 
+```
 list.insert(i, x)
+```
 
     Insert an item at a given position. The first argument is the index of the element before which to insert, so a.insert(0, x) inserts at the front of the list, and a.insert(len(a), x) is equivalent to a.append(x).
 
+```
 list.remove(x)
+```
 
     Remove the first item from the list whose value is x. It is an error if there is no such item.
 
+```
 list.pop([i])
+```
 
     Remove the item at the given position in the list, and return it. If no index is specified, a.pop() removes and returns the last item in the list. (The square brackets around the i in the method signature denote that the parameter is optional, not that you should type square brackets at that position. You will see this notation frequently in the Python Library Reference.)
 
+```
 list.index(x)
+```
 
     Return the index in the list of the first item whose value is x. It is an error if there is no such item.
 
+```
 list.count(x)
+```
 
     Return the number of times x appears in the list.
 
+```
 list.sort(cmp=None, key=None, reverse=False)
+```
 
     Sort the items of the list in place (the arguments can be used for sort customization, see sorted() for their explanation).
 
+```
 list.reverse()
+```
 
     Reverse the elements of the list, in place.
 
 An example that uses most of the list methods:
->>>
 
+```
 >>> a = [66.25, 333, 333, 1, 1234.5]
 >>> print a.count(333), a.count(66.25), a.count('x')
 2 1 0
@@ -613,13 +630,15 @@ An example that uses most of the list methods:
 1234.5
 >>> a
 [-1, 1, 66.25, 333, 333]
+```
 
 You might have noticed that methods like insert, remove or sort that only modify the list have no return value printed – they return the default None. [1] This is a design principle for all mutable data structures in Python.
-5.1.1. Using Lists as Stacks
+
+### 5.1.1. Using Lists as Stacks
 
 The list methods make it very easy to use a list as a stack, where the last element added is the first element retrieved (“last-in, first-out”). To add an item to the top of the stack, use append(). To retrieve an item from the top of the stack, use pop() without an explicit index. For example:
->>>
 
+```
 >>> stack = [3, 4, 5]
 >>> stack.append(6)
 >>> stack.append(7)
@@ -635,14 +654,15 @@ The list methods make it very easy to use a list as a stack, where the last elem
 5
 >>> stack
 [3, 4]
+```
 
-5.1.2. Using Lists as Queues
+### 5.1.2. Using Lists as Queues
 
 It is also possible to use a list as a queue, where the first element added is the first element retrieved (“first-in, first-out”); however, lists are not efficient for this purpose. While appends and pops from the end of list are fast, doing inserts or pops from the beginning of a list is slow (because all of the other elements have to be shifted by one).
 
 To implement a queue, use collections.deque which was designed to have fast appends and pops from both ends. For example:
->>>
 
+```
 >>> from collections import deque
 >>> queue = deque(["Eric", "John", "Michael"])
 >>> queue.append("Terry")           # Terry arrives
@@ -653,88 +673,99 @@ To implement a queue, use collections.deque which was designed to have fast appe
 'John'
 >>> queue                           # Remaining queue in order of arrival
 deque(['Michael', 'Terry', 'Graham'])
+```
 
-5.1.3. Functional Programming Tools
+### 5.1.3. Functional Programming Tools
 
 There are three built-in functions that are very useful when used with lists: filter(), map(), and reduce().
 
 filter(function, sequence) returns a sequence consisting of those items from the sequence for which function(item) is true. If sequence is a str, unicode or tuple, the result will be of the same type; otherwise, it is always a list. For example, to compute a sequence of numbers divisible by 3 or 5:
->>>
 
->>> def f(x): return x % 3 == 0 or x % 5 == 0
+```
+def f(x): return x % 3 == 0 or x % 5 == 0
    
->>> filter(f, range(2, 25))
+filter(f, range(2, 25))
 [3, 5, 6, 9, 10, 12, 15, 18, 20, 21, 24]
+```
 
 map(function, sequence) calls function(item) for each of the sequence’s items and returns a list of the return values. For example, to compute some cubes:
->>>
 
->>> def cube(x): return x*x*x
+```
+def cube(x): return x*x*x
    
->>> map(cube, range(1, 11))
+map(cube, range(1, 11))
 [1, 8, 27, 64, 125, 216, 343, 512, 729, 1000]
+```
+
 
 More than one sequence may be passed; the function must then have as many arguments as there are sequences and is called with the corresponding item from each sequence (or None if some sequence is shorter than another). For example:
->>>
 
->>> seq = range(8)
->>> def add(x, y): return x+y
+```
+seq = range(8)
+def add(x, y): return x+y
    
->>> map(add, seq, seq)
+map(add, seq, seq)
 [0, 2, 4, 6, 8, 10, 12, 14]
+```
 
 reduce(function, sequence) returns a single value constructed by calling the binary function function on the first two items of the sequence, then on the result and the next item, and so on. For example, to compute the sum of the numbers 1 through 10:
->>>
 
->>> def add(x,y): return x+y
+```
+def add(x,y): return x+y
    
->>> reduce(add, range(1, 11))
+reduce(add, range(1, 11))
 55
+```
 
 If there’s only one item in the sequence, its value is returned; if the sequence is empty, an exception is raised.
 
 A third argument can be passed to indicate the starting value. In this case the starting value is returned for an empty sequence, and the function is first applied to the starting value and the first sequence item, then to the result and the next item, and so on. For example,
->>>
 
->>> def sum(seq):
-        def add(x,y): return x+y
-        return reduce(add, seq, 0)
+````
+def sum(seq):
+    def add(x,y): return x+y
+    return reduce(add, seq, 0)
    
->>> sum(range(1, 11))
+sum(range(1, 11))
 55
->>> sum([])
+sum([])
 0
+```
 
 Don’t use this example’s definition of sum(): since summing numbers is such a common need, a built-in function sum(sequence) is already provided, and works exactly like this.
-5.1.4. List Comprehensions
+
+### 5.1.4. List Comprehensions
 
 List comprehensions provide a concise way to create lists. Common applications are to make new lists where each element is the result of some operations applied to each member of another sequence or iterable, or to create a subsequence of those elements that satisfy a certain condition.
 
 For example, assume we want to create a list of squares, like:
->>>
 
+```
 >>> squares = []
 >>> for x in range(10):
         squares.append(x**2)
    
 >>> squares
 [0, 1, 4, 9, 16, 25, 36, 49, 64, 81]
-
+```
 We can obtain the same result with:
 
+```
 squares = [x**2 for x in range(10)]
+```
 
 This is also equivalent to squares = map(lambda x: x**2, range(10)), but it’s more concise and readable.
 
 A list comprehension consists of brackets containing an expression followed by a for clause, then zero or more for or if clauses. The result will be a new list resulting from evaluating the expression in the context of the for and if clauses which follow it. For example, this listcomp combines the elements of two lists if they are not equal:
->>>
 
+```
 >>> [(x, y) for x in [1,2,3] for y in [3,1,4] if x != y]
 [(1, 3), (1, 4), (2, 3), (2, 1), (2, 4), (3, 1), (3, 4)]
+```
 
 and it’s equivalent to:
->>>
 
+```
 >>> combs = []
 >>> for x in [1,2,3]:
         for y in [3,1,4]:
@@ -743,7 +774,7 @@ and it’s equivalent to:
    
 >>> combs
 [(1, 3), (1, 4), (2, 3), (2, 1), (2, 4), (3, 1), (3, 4)]
-
+```
 Note how the order of the for and if statements is the same in both these snippets.
 
 If the expression is a tuple (e.g. the (x, y) in the previous example), it must be parenthesized.
