@@ -1125,18 +1125,20 @@ Comparisons may be combined using the Boolean operators and and or, and the outc
 The Boolean operators and and or are so-called short-circuit operators: their arguments are evaluated from left to right, and evaluation stops as soon as the outcome is determined. For example, if A and C are true but B is false, A and B and C does not evaluate the expression C. When used as a general value and not as a Boolean, the return value of a short-circuit operator is the last evaluated argument.
 
 It is possible to assign the result of a comparison or other Boolean expression to a variable. For example,
->>>
-
->>> string1, string2, string3 = '', 'Trondheim', 'Hammer Dance'
->>> non_null = string1 or string2 or string3
->>> non_null
+```
+string1, string2, string3 = '', 'Trondheim', 'Hammer Dance'
+non_null = string1 or string2 or string3
+non_null
 'Trondheim'
+```
 
 Note that in Python, unlike C, assignment cannot occur inside expressions. C programmers may grumble about this, but it avoids a common class of problems encountered in C programs: typing = in an expression when == was intended.
-5.8. Comparing Sequences and Other Types
+
+## 5.8. Comparing Sequences and Other Types
 
 Sequence objects may be compared to other objects with the same sequence type. The comparison uses lexicographical ordering: first the first two items are compared, and if they differ this determines the outcome of the comparison; if they are equal, the next two items are compared, and so on, until either sequence is exhausted. If two items to be compared are themselves sequences of the same type, the lexicographical comparison is carried out recursively. If all items of two sequences compare equal, the sequences are considered equal. If one sequence is an initial sub-sequence of the other, the shorter sequence is the smaller (lesser) one. Lexicographical ordering for strings uses the ASCII ordering for individual characters. Some examples of comparisons between sequences of the same type:
 
+```
 (1, 2, 3)              < (1, 2, 4)
 [1, 2, 3]              < [1, 2, 4]
 'ABC' < 'C' < 'Pascal' < 'Python'
@@ -1145,14 +1147,35 @@ Sequence objects may be compared to other objects with the same sequence type. T
 (1, 2, 3)             == (1.0, 2.0, 3.0)
 (1, 2, ('aa', 'ab'))   < (1, 2, ('abc', 'a'), 4)
 
+>>> (1, 2, 3)              < (1, 2, 4)
+True
+>>> (1, 2, 3)              < (1, 2, 3)
+False
+>>> [1, 2, 3]              < [1, 2, 4]
+True
+>>> [1, 2, 3]              < [1, 2, 3]
+False
+>>> 'ABC' < 'C' < 'Pascal' < 'Python'
+True
+>>> (1, 2, 3, 4)           < (1, 2, 4)
+True
+>>> (1, 2)                 < (1, 2, -1)
+True
+>>> (1, 2, 3)             == (1.0, 2.0, 3.0)
+True
+>>> (1, 2, ('aa', 'ab'))   < (1, 2, ('abc', 'a'), 4)
+True
+```
+
 Note that comparing objects of different types is legal. The outcome is deterministic but arbitrary: the types are ordered by their name. Thus, a list is always smaller than a string, a string is always smaller than a tuple, etc. [1] Mixed numeric types are compared according to their numeric value, so 0 equals 0.0, etc.
 
 ## Modules/Packages
 
 Python has a way to put definitions in a file and use them in a script or in an interactive instance of the interpreter. Such a file is called a module; definitions from a module can be imported into other modules or into the main module (the collection of variables that you have access to in a script executed at the top level and in calculator mode).
 
-A module is a file containing Python definitions and statements. The file name is the module name with the suffix .py appended. Within a module, the module’s name (as a string) is available as the value of the global variable __name__. For instance, use your favorite text editor to create a file called fibo.py in the current directory with the following contents:
+A module is a file containing Python definitions and statements. The file name is the module name with the suffix .py appended. Within a module, the module’s name (as a string) is available as the value of the global variable \_\_name\_\_. For instance, use your favorite text editor to create a file called fibo.py in the current directory with the following contents:
 
+```
 # Fibonacci numbers module
 
 def fib(n):    # write Fibonacci series up to n
@@ -1169,28 +1192,31 @@ def fib2(n): # return Fibonacci series up to n
         result.append(b)
         a, b = b, a+b
     return result
+```
 
 Now enter the Python interpreter and import this module with the following command:
->>>
 
+```
 >>> import fibo
+```
 
 This does not enter the names of the functions defined in fibo directly in the current symbol table; it only enters the module name fibo there. Using the module name you can access the functions:
->>>
-
+```
 >>> fibo.fib(1000)
 1 1 2 3 5 8 13 21 34 55 89 144 233 377 610 987
 >>> fibo.fib2(100)
 [1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89]
 >>> fibo.__name__
 'fibo'
+```
 
 If you intend to use a function often you can assign it to a local name:
+```
 >>> fib = fibo.fib
 >>> fib(500)
 1 1 2 3 5 8 13 21 34 55 89 144 233 377
-
-### More on Modules
+```
+## More on Modules
 
 A module can contain executable statements as well as function definitions. These statements are intended to initialize the module. They are executed only the first time the module name is encountered in an import statement. [1] (They are also run if the file is executed as a script.)
 
@@ -1200,13 +1226,16 @@ Modules can import other modules. It is customary but not required to place all 
 
 There is a variant of the import statement that imports names from a module directly into the importing module’s symbol table. For example:
 
+```
 from fibo import fib, fib2
 >>> fib(500)
-
+```
+```
 from fibo import *
 >>> fib(500)
+```
 
-This imports all names except those beginning with an underscore (_). In most cases Python programmers do not use this facility since it introduces an unknown set of names into the interpreter, possibly hiding some things you have already defined.
+This imports all names except those beginning with an underscore (\_). In most cases Python programmers do not use this facility since it introduces an unknown set of names into the interpreter, possibly hiding some things you have already defined.
 
 Executing modules as scripts
 
@@ -1214,15 +1243,19 @@ When you run a Python module with
 
 python fibo.py <arguments>
 
-the code in the module will be executed, just as if you imported it, but with the __name__ set to "__main__". That means that by adding this code at the end of your module:
+the code in the module will be executed, just as if you imported it, but with the \_\_name\_\_ set to "\_\_main\_\_". That means that by adding this code at the end of your module:
 
+```
 if __name__ == "__main__":
     import sys
     fib(int(sys.argv[1]))
+```
 
 you can make the file usable as a script as well as an importable module, because the code that parses the command line only runs if the module is executed as the “main” file:
 
+```
 $ python fibo.py 50
+```
 
 This is often used either to provide a convenient user interface to a module, or for testing purposes (running the module as a script executes a test suite).
 
@@ -1230,15 +1263,16 @@ Python comes with a library of standard modules, described in a separate documen
 
 The variable sys.path is a list of strings that determines the interpreter’s search path for modules. It is initialized to a default path taken from the environment variable PYTHONPATH, or from a built-in default if PYTHONPATH is not set. You can modify it using standard list operations:
 
+```
 >>> import sys
 >>> sys.path.append('/ufs/guido/lib/python')
+```
 
-
-The dir() Function
+## The dir() Function
 
 The built-in function dir() is used to find out which names a module defines. It returns a sorted list of strings:
->>>
 
+```
 >>> import fibo, sys
 >>> dir(fibo)
 ['__name__', 'fib', 'fib2']
@@ -1246,31 +1280,35 @@ The built-in function dir() is used to find out which names a module defines. It
 ['__displayhook__', '__doc__', '__egginsert', '__excepthook__',
  '__loader__', '__name__', '__package__', '__plen', '__stderr__',
 <snip>
+```
 
 Without arguments, dir() lists the names you have defined currently:
->>>
 
+```
 >>> a = [1, 2, 3, 4, 5]
 >>> import fibo
 >>> fib = fibo.fib
 >>> dir()
 ['__builtins__', '__name__', 'a', 'fib', 'fibo', 'sys']
+```
 
 Note that it lists all types of names: variables, modules, functions, etc.
 
 dir() does not list the names of built-in functions and variables. If you want a list of those, they are defined in the standard module builtins:
->>>
 
+```
 >>> import builtins
 >>> dir(builtins)  
 ['ArithmeticError', 'AssertionError', 'AttributeError', 'BaseException',
  'BlockingIOError', 'BrokenPipeError', 'BufferError', 'BytesWarning',
  <snip>
+```
  
- Packages
+## Packages
 
-### Packages are a way of structuring Python’s module namespace by using “dotted module names”. For example, the module name A.B designates a submodule named B in a package named A. Just like the use of modules saves the authors of different modules from having to worry about each other’s global variable names, the use of dotted module names saves the authors of multi-module packages like NumPy or the Python Imaging Library from having to worry about each other’s module names.
+Packages are a way of structuring Python’s module namespace by using “dotted module names”. For example, the module name A.B designates a submodule named B in a package named A. Just like the use of modules saves the authors of different modules from having to worry about each other’s global variable names, the use of dotted module names saves the authors of multi-module packages like NumPy or the Python Imaging Library from having to worry about each other’s module names.
 
+```
 sound/                          Top-level package
       __init__.py               Initialize the sound package
       formats/                  Subpackage for file format conversions
@@ -1294,10 +1332,11 @@ sound/                          Top-level package
               vocoder.py
               karaoke.py
                  
+```
 
 When importing the package, Python searches through the directories on sys.path looking for the package subdirectory.
 
-The __init__.py files are required to make Python treat the directories as containing packages; this is done to prevent directories with a common name, such as string, from unintentionally hiding valid modules that occur later on the module search path. In the simplest case, __init__.py can just be an empty file, but it can also execute initialization code for the package or set the __all__ variable, described later.
+The &#95;&#95;init&#95;&#95;.py files are required to make Python treat the directories as containing packages; this is done to prevent directories with a common name, such as string, from unintentionally hiding valid modules that occur later on the module search path. In the simplest case, __init__.py can just be an empty file, but it can also execute initialization code for the package or set the __all__ variable, described later.
 
 Users of the package can import individual modules from the package, for example:
 
