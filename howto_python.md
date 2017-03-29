@@ -1336,52 +1336,62 @@ sound/                          Top-level package
 
 When importing the package, Python searches through the directories on sys.path looking for the package subdirectory.
 
-The &#95;&#95;init&#95;&#95;.py files are required to make Python treat the directories as containing packages; this is done to prevent directories with a common name, such as string, from unintentionally hiding valid modules that occur later on the module search path. In the simplest case, __init__.py can just be an empty file, but it can also execute initialization code for the package or set the __all__ variable, described later.
+The &#95;&#95;init&#95;&#95;.py files are required to make Python treat the directories as containing packages; this is done to prevent directories with a common name, such as string, from unintentionally hiding valid modules that occur later on the module search path. In the simplest case, &#95;&#95;init&#95;&#95;.py can just be an empty file, but it can also execute initialization code for the package or set the &#95;&#95;all&#95;&#95; variable, described later.
 
 Users of the package can import individual modules from the package, for example:
-
+```
 import sound.effects.echo
+```
 
 This loads the submodule sound.effects.echo. It must be referenced with its full name.
-
+```
 sound.effects.echo.echofilter(input, output, delay=0.7, atten=4)
+```
 
 An alternative way of importing the submodule is:
-
+```
 from sound.effects import echo
+```
 
 This also loads the submodule echo, and makes it available without its package prefix, so it can be used as follows:
-
+```
 echo.echofilter(input, output, delay=0.7, atten=4)
+```
 
 Yet another variation is to import the desired function or variable directly:
-
+```
 from sound.effects.echo import echofilter
+```
 
 Again, this loads the submodule echo, but this makes its function echofilter() directly available:
-
+```
 echofilter(input, output, delay=0.7, atten=4)
+```
 
 Note that when using from package import item, the item can be either a submodule (or subpackage) of the package, or some other name defined in the package, like a function, class or variable. The import statement first tests whether the item is defined in the package; if not, it assumes it is a module and attempts to load it. If it fails to find it, an ImportError exception is raised.
 
 Contrarily, when using syntax like import item.subitem.subsubitem, each item except for the last must be a package; the last item can be a module or a package but can’t be a class or function or variable defined in the previous item.
-6.4.1. Importing * From a Package
+
+### 6.4.1. Importing * From a Package
 
 Now what happens when the user writes from sound.effects import *? Ideally, one would hope that this somehow goes out to the filesystem, finds which submodules are present in the package, and imports them all. This could take a long time and importing sub-modules might have unwanted side-effects that should only happen when the sub-module is explicitly imported.
 
-The only solution is for the package author to provide an explicit index of the package. The import statement uses the following convention: if a package’s __init__.py code defines a list named __all__, it is taken to be the list of module names that should be imported when from package import * is encountered. It is up to the package author to keep this list up-to-date when a new version of the package is released. Package authors may also decide not to support it, if they don’t see a use for importing * from their package. For example, the file sound/effects/__init__.py could contain the following code:
+The only solution is for the package author to provide an explicit index of the package. The import statement uses the following convention: if a package’s &#95;&#95;init&#95;&#95;.py code defines a list named &#95;&#95;all&#95;&#95;, it is taken to be the list of module names that should be imported when from package import * is encountered. It is up to the package author to keep this list up-to-date when a new version of the package is released. Package authors may also decide not to support it, if they don’t see a use for importing * from their package. For example, the file sound/effects/&#95;&#95;init&#95;&#95;.py could contain the following code:
 
+```
 __all__ = ["echo", "surround", "reverse"]
-
+```
 This would mean that from sound.effects import * would import the three named submodules of the sound package.
 
-If __all__ is not defined, the statement from sound.effects import * does not import all submodules from the package sound.effects into the current namespace; it only ensures that the package sound.effects has been imported (possibly running any initialization code in __init__.py) and then imports whatever names are defined in the package. This includes any names defined (and submodules explicitly loaded) by __init__.py. It also includes any submodules of the package that were explicitly loaded by previous import statements. Consider this code:
+If &#95;&#95;all&#95;&#95; is not defined, the statement from sound.effects import * does not import all submodules from the package sound.effects into the current namespace; it only ensures that the package sound.effects has been imported (possibly running any initialization code in &#95;&#95;init&#95;&#95;.py) and then imports whatever names are defined in the package. This includes any names defined (and submodules explicitly loaded) by &#95;&#95;init&#95;&#95;.py. It also includes any submodules of the package that were explicitly loaded by previous import statements. Consider this code:
 
+```
 import sound.effects.echo
 import sound.effects.surround
 from sound.effects import *
+```
 
-In this example, the echo and surround modules are imported in the current namespace because they are defined in the sound.effects package when the from   import statement is executed. (This also works when __all__ is defined.)
+In this example, the echo and surround modules are imported in the current namespace because they are defined in the sound.effects package when the from   import statement is executed. (This also works when &#95;&#95;all&#95;&#95; is defined.)
 
 
 
@@ -1396,8 +1406,8 @@ One question remains, of course: how do you convert values to strings? Luckily, 
 The str() function is meant to return representations of values which are fairly human-readable, while repr() is meant to generate representations which can be read by the interpreter (or will force a SyntaxError if there is no equivalent syntax). For objects which don’t have a particular representation for human consumption, str() will return the same value as repr(). Many values, such as numbers or structures like lists and dictionaries, have the same representation using either function. Strings, in particular, have two distinct representations.
 
 Here are two ways to write a table of squares and cubes:
->>>
 
+```
 >>> for x in range(1, 11):
         print(repr(x).rjust(2), repr(x*x).rjust(3), end=' ')
         # Note use of 'end' on previous line
@@ -1415,22 +1425,25 @@ Here are two ways to write a table of squares and cubes:
 <snip>
  9  81  729
 10 100 1000
+```
 
 (Note that in the first example, one space between each column was added by the way print() works: it always adds spaces between its arguments.)
 
 str.zfill()  pads a numeric string on the left with zeros. It understands about plus and minus signs:
 
+```
 >>> '12'.zfill(5)
 '00012'
 >>> '-3.14'.zfill(7)
 '-003.14'
 >>> '3.14159265359'.zfill(5)
 '3.14159265359'
+```
 
 Basic usage of the str.format() method looks like this:
->>>
-
+```
 >>> print('We are the {} who say "{}!"'.format('knights', 'Ni'))
+```
 We are the knights who say "Ni!"
 
 The brackets and characters within them (called format fields) are replaced with the objects passed into the str.format() method. A number in the brackets can be used to refer to the position of the object passed into the str.format() method.
